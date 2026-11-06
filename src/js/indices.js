@@ -10,7 +10,7 @@ const INDICES = {
       2015: [108.32, 108.38, 108.38, 108.41], 2016: [108.40, 108.40, 108.56, 108.91], 2017: [109.46, 110.00, 110.78, 111.33],
       2018: [111.87, 112.59, 113.45, 114.06], 2019: [114.64, 115.21, 115.60, 116.16], 2020: [116.23, 115.42, 115.70, 115.79],
       2021: [116.73, 118.41, 119.70, 118.59], 2022: [120.61, 123.65, 126.13, 126.05], 2023: [128.68, 131.49, 134.00, 132.63],
-      2024: [133.68, 134.07, 135.21, 135.19], 2025: [136.04, 136.69, null, null],
+      2024: [133.68, 134.07, 135.21, 135.19], 2025: [136.04, 136.69, 136.88, 137.30], 2026: [137.80, null, null, null],
     },
     ILAT: {
       2010: [100.00, 100.37, 100.81, 101.45], 2011: [101.87, 102.17, 102.82, 103.37], 2012: [103.84, 104.44, 104.95, 105.35],
@@ -18,7 +18,7 @@ const INDICES = {
       2015: [107.69, 107.86, 107.98, 108.16], 2016: [108.20, 108.41, 108.69, 108.94], 2017: [109.41, 109.89, 110.36, 110.88],
       2018: [111.45, 112.01, 112.74, 113.30], 2019: [113.88, 114.47, 114.85, 115.43], 2020: [115.53, 114.33, 114.23, 114.06],
       2021: [114.87, 116.46, 117.61, 118.97], 2022: [120.73, 122.65, 125.23, 126.50], 2023: [127.46, 128.74, 131.17, 132.07],
-      2024: [132.54, 133.28, 134.42, 134.99], 2025: [135.70, 136.34, null, null],
+      2024: [132.54, 133.28, 134.42, 134.99], 2025: [135.70, 136.34, 136.95, 137.40], 2026: [137.95, null, null, null],
     },
     ICC: {
       2005: [1270, 1276, 1278, 1332], 2006: [1362, 1366, 1381, 1406], 2007: [1385, 1435, 1443, 1474], 2008: [1497, 1562, 1594, 1523], 2009: [1503, 1498, 1502, 1507],
@@ -26,15 +26,17 @@ const INDICES = {
       2015: [1632, 1614, 1608, 1629], 2016: [1615, 1622, 1643, 1645], 2017: [1650, 1664, 1670, 1667],
       2018: [1671, 1699, 1733, 1703], 2019: [1728, 1746, 1746, 1769], 2020: [1770, 1753, 1765, 1795],
       2021: [1821, 1825, 1886, 1886], 2022: [1948, 1966, 2037, 2077], 2023: [2144, 2146, 2106, 2162],
-      2024: [2227, 2183, 2144, 2160], 2025: [2193, null, null, null],
+      2024: [2227, 2183, 2144, 2160], 2025: [2193, 2201, 2207, 2220], 2026: [2235, null, null, null],
     },
   },
+  // Périodes dont la valeur est une estimation (publication récente non confirmée) : à remplacer impérativement
+  ESTIMES: new Set(['ILC:2025T3', 'ILC:2025T4', 'ILC:2026T1', 'ILAT:2025T3', 'ILAT:2025T4', 'ILAT:2026T1', 'ICC:2025T2', 'ICC:2025T3', 'ICC:2025T4', 'ICC:2026T1']),
   cache: null,
   async load() { INDICES.cache = await DB.all('indices'); return INDICES.cache; },
   // Ajoute les valeurs pré-remplies absentes de la table (sans toucher aux valeurs existantes). Renvoie le nombre ajouté.
   async seedMissing() {
     const rows = await DB.all('indices'); const have = new Set(rows.map(r => r.id)); const out = [];
-    for (const [type, years] of Object.entries(INDICES.PREFILL)) for (const [y, vals] of Object.entries(years)) vals.forEach((v, i) => { const id = `${type}:${y}T${i + 1}`; if (v !== null && !have.has(id)) out.push({ id, type, periode: `${y}T${i + 1}`, valeur: v, verifie: false, source: 'pré-rempli (à vérifier)' }); });
+    for (const [type, years] of Object.entries(INDICES.PREFILL)) for (const [y, vals] of Object.entries(years)) vals.forEach((v, i) => { const id = `${type}:${y}T${i + 1}`; if (v !== null && !have.has(id)) out.push({ id, type, periode: `${y}T${i + 1}`, valeur: v, verifie: false, source: INDICES.ESTIMES.has(id) ? 'ESTIMATION à remplacer' : 'pré-rempli (à vérifier)' }); });
     if (out.length) await DB.putMany('indices', out); INDICES.cache = [...rows, ...out]; return out.length;
   },
   // Modèle de fichier CSV attendu pour l'import

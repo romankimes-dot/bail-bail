@@ -126,8 +126,9 @@ const EXTRACT = {
     }
   },
   // Exécute toutes les règles ; renvoie {champ: {value, conf, page, snippet, offset}}
-  run(pages, learned = {}) {
+  run(pages, learned = {}, actifs = []) {
     const ctx = EXTRACT.buildText(pages); const out = {};
+    const am = EXTRACT.matchActif(ctx, actifs);
     for (const f of EXTRACT.FIELDS) {
       let res = null;
       // 1. ancres apprises
@@ -151,6 +152,7 @@ const EXTRACT = {
       }
       out[f.key] = res || { value: null, conf: 'absent' };
     }
+    if (am) { out.actif = { value: am.actif.nom, conf: 'ok', offset: am.offset, page: EXTRACT.pageAt(ctx, am.offset), snippet: EXTRACT.snippet(ctx.orig, am.offset, am.len), note: 'actif paramétré' }; out._actif = am.actif; }
     EXTRACT.postProcess(out, ctx);
     return { fields: out, ctx };
   },
@@ -187,6 +189,11 @@ const EXTRACT = {
     if (type === 'trim') { const p = U.parseTrim(v); return p ? [`${p.q}er trimestre ${p.y}`, `${p.q}eme trimestre ${p.y}`, `${p.q}e trimestre ${p.y}`, `${p.q}eme trimestre de l'annee ${p.y}`, `${p.q}er trimestre de l'annee ${p.y}`] : []; }
     if (type === 'int') { const n = +v; const mot = Object.entries(U.motsNombre).find(([k, x]) => x === n); return [String(n), mot ? mot[0] : null].filter(Boolean); }
     return [EXTRACT.normKeepLen(String(v))];
+  },
+  // Reconnaissance d'un actif paramétré (nom ou mots-clés présents dans le texte)
+  matchActif(ctx, actifs) {
+    for (const a of (actifs || [])) { const keys = [a.nom, ...(a.motsCles || '').split(/[;,]/)].map(k => EXTRACT.normKeepLen(String(k || '').trim())).filter(k => k.length > 3); for (const k of keys) { const i = ctx.flat.indexOf(k); if (i >= 0) return { actif: a, offset: i, len: k.length }; } }
+    return null;
   },
   // Cohérence et déductions
   postProcess(out, ctx) {

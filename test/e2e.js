@@ -35,7 +35,7 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   await p.screenshot({ path: path.join(shots, '4-indices.png') });
   // quittancement 2025
   await p.click('#tabs button[data-view="quittance"]'); await p.fill('#q-from', '2025-01-01'); await p.fill('#q-to', '2025-12-31'); await p.click('#q-run'); await p.waitForSelector('#q-out table');
-  const q = await p.evaluate(() => ({ n: APP.quittance.length, lignes: APP.quittance.slice(0, 5).map(l => [l.du, l.au, l.libelle, l.lot, l.yardiTenant, l.yardiProperty, l.ht, l.coef.toFixed(4)]), warn: document.querySelector('#q-warn').textContent.trim().slice(0, 200) }));
+  const q = await p.evaluate(() => ({ n: APP.quittance.length, depots: APP.quittance.filter(l => l.type === 'depot').map(l => [l.du, l.libelle, l.ht]), lignes: APP.quittance.slice(0, 5).map(l => [l.du, l.au, l.libelle, l.lot, l.yardiTenant, l.yardiProperty, l.ht, l.coef.toFixed(4)]), warn: document.querySelector('#q-warn').textContent.trim().slice(0, 200) }));
   console.log(JSON.stringify(q)); await p.screenshot({ path: path.join(shots, '5-quittance.png') });
   // yardi : collage
   await p.click('#tabs button[data-view="yardi"]'); await p.waitForSelector('#y-paste'); await p.click('#y-paste');
@@ -54,6 +54,15 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   // paramètres : export excel (download) et sauvegarde chiffrée
   await p.click('#tabs button[data-view="params"]'); await p.waitForSelector('#p-xlsx');
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#p-xlsx')]); console.log('excel :', dl.suggestedFilename());
+  // classeur de vérification : export, modification hors app, import
+  const [dv] = await Promise.all([p.waitForEvent('download'), p.click('#p-verif-exp')]); const vpath = path.join(__dirname, 'tmp', 'verif.xlsx'); fs.mkdirSync(path.dirname(vpath), { recursive: true }); await dv.saveAs(vpath);
+  const XLSX = require(path.join(__dirname, '../vendor/xlsx.full.min.js')); const wb = XLSX.read(fs.readFileSync(vpath)); const ws = wb.Sheets['Baux']; const rows = XLSX.utils.sheet_to_json(ws); console.log('colonnes verif :', Object.keys(rows[0]).slice(0, 8).join(' | '), '… total', Object.keys(rows[0]).length);
+  rows[0]['Franchise (mois)'] = 2; rows[0]['Tenant id Yardi (t…)'] = 't0000001'; rows[0]['Statut'] = 'Validé'; rows.push({ 'Référence': '24.002.02', 'Preneur': 'NOUVEAU LOCATAIRE', 'Loyer annuel HT total (€)': '50000', "Date d'effet": '01/03/2025', 'Périodicité': 'mensuel', 'Statut': 'À vérifier' });
+  wb.Sheets['Baux'] = XLSX.utils.json_to_sheet(rows); fs.writeFileSync(vpath, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  await p.setInputFiles('#p-verif-file', vpath); await p.waitForTimeout(800);
+  console.log('après import classeur', JSON.stringify(await p.evaluate(() => APP.baux.map(b => [b.ref, b.statut, b.franchiseMois, b.yardi.tenantCodes, b.preneur, b.loyerAnnuelHT]))));
+  // actifs paramétrés
+  await p.click('#p-actif-fromdata'); await p.waitForTimeout(300); console.log('actifs', JSON.stringify(await p.evaluate(() => APP.actifs)));
   await p.screenshot({ path: path.join(shots, '7-params.png') });
   console.log('erreurs page :', errors); await b.close();
 })().catch(e => { console.error('ECHEC', e); process.exit(1); });

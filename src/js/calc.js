@@ -94,7 +94,27 @@ const CALC = {
     return (U.daysBetween(a, b) + 1) / (U.daysBetween(p.du, p.au) + 1); // part de la période en franchise
   },
   // Quittancement d'un bail sur [from, to] : lignes par période
-  quittance(bail, from, to, { loyersSeuls = false } = {}) {
+  // Lignes de dépôt de garantie : versement initial puis réajustements à chaque anniversaire d'indexation
+  depotLignes(bail, from, to) {
+    const dp = bail.depot || {}; if (!dp.montant && !dp.mois) return [];
+    const out = []; const mk = (date, libelle, montant, note) => out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode: (bail.yardi && bail.yardi.tenantCodes || []).join(', '), actif: bail.actif, propertyCode: bail.yardi && bail.yardi.propertyCode || '', yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, null), lot: '', unitCode: '', du: date, au: date, periode: date.slice(0, 7), type: 'depot', chargeCode: CALC.code('depot'), libelle, ht: U.round2(montant), tauxTva: 0, tva: 0, ttc: U.round2(montant), coef: 1, prorata: 1, franchise: 0, note });
+    const mois = dp.mois || (bail.loyerAnnuelHT ? Math.round(dp.montant / (CALC.loyerAnnuel(bail) / 12)) : null);
+    const cible = (date) => { const ix = CALC.indexCoef(bail, date); return mois ? U.round2(CALC.loyerAnnuel(bail) * ix.coef / 12 * mois) : U.round2((dp.montant || 0) * ix.coef); };
+    let courant = dp.montant || cible(bail.dateEffet || from);
+    if (bail.dateEffet && bail.dateEffet >= from && bail.dateEffet <= to) mk(bail.dateEffet, `Dépôt de garantie initial${mois ? ` (${mois} mois)` : ''}`, courant);
+    if (dp.reajustement === false) return out;
+    const ix = bail.index || {}; if (!ix.premiereDate || !ix.type || ix.type === 'aucun') return out;
+    let d = ix.premiereDate, n = 0;
+    while (d <= to && n < 80) {
+      if (d >= from && d > (bail.dateEffet || '')) { const c = cible(d); const diff = U.round2(c - courant); if (Math.abs(diff) >= 0.01) mk(d, `Réajustement dépôt de garantie (${U.fmtMoney(courant)} → ${U.fmtMoney(c)})`, diff, `cible ${U.fmtMoney(c)} €`); courant = c; }
+      else if (d > (bail.dateEffet || '')) courant = cible(d);
+      d = U.addMonths(ix.premiereDate, 12 * ++n);
+    }
+    return out;
+  },
+  // Montant HT des loyers calculés sur une plage quelconque [du, au], par code de charge
+  montantSur(bail, du, au) { const r = CALC.quittance(bail, du, au, { loyersSeuls: false, depot: true }); const m = {}; for (const l of r.lignes) m[l.chargeCode] = U.round2((m[l.chargeCode] || 0) + l.ht); return { parCode: m, warnings: r.warnings }; },
+  quittance(bail, from, to, { loyersSeuls = false, depot = false } = {}) {
     const tva = bail.tva && bail.tva.option === false ? 0 : (bail.tva && bail.tva.taux != null ? +bail.tva.taux : 20);
     const mode = bail.prorata || 'jours'; const lignes = []; const warn = new Set();
     const nb = CALC.NB[bail.periodicite || 'trimestriel'];
@@ -112,8 +132,10 @@ const CALC = {
       const ch = bail.charges || {};
       if (ch.montantAnnuelHT) { const nbc = CALC.NB[ch.periodicite || bail.periodicite || 'trimestriel']; if (nbc === nb) push('charges', ch.mode === 'forfait' ? 'Forfait charges' : 'Provision charges', ch.montantAnnuelHT / nb * pr); else push('charges', 'Charges (périodicité différente)', ch.montantAnnuelHT / nb * pr, { note: `charges ${ch.periodicite}` }); }
       if (ch.taxeFonciereMontant) push('taxeFonciere', 'Taxe foncière', ch.taxeFonciereMontant / nb * pr, { tva: 0 });
-      if (bail.depot && bail.depot.montant && bail.dateEffet >= p.du && bail.dateEffet <= p.au) push('depot', 'Dépôt de garantie', bail.depot.montant, { tva: 0, prorata: 1 });
+      if (!depot && bail.depot && bail.depot.montant && bail.dateEffet >= p.du && bail.dateEffet <= p.au) push('depot', 'Dépôt de garantie', bail.depot.montant, { tva: 0, prorata: 1 });
     }
+    if (depot) lignes.push(...CALC.depotLignes(bail, from, to));
+    lignes.sort((a, b) => a.du.localeCompare(b.du) || (a.type === 'depot') - (b.type === 'depot'));
     return { lignes, warnings: [...warn] };
   },
   // Loyer annuel indexé en vigueur à une date

@@ -17,14 +17,16 @@
 * { box-sizing:border-box; }
 html, body { margin:0; height:100%; font:13.5px/1.45 "Segoe UI", -apple-system, system-ui, Roboto, "Helvetica Neue", Arial, sans-serif; color:var(--text); background:var(--bg); }
 button, input, select, textarea { font:inherit; color:inherit; }
-button { background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:5px 11px; cursor:pointer; transition:background .12s, border-color .12s; white-space:nowrap; }
+button { background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:0 12px; height:32px; line-height:30px; cursor:pointer; transition:background .12s, border-color .12s; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
+.sub button, .form .src, td button { height:26px; line-height:24px; padding:0 8px; }
 button:hover { background:var(--panel2); border-color:var(--accent); }
 button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
 button.primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
 button.danger { color:var(--absent); } button.danger:hover { background:var(--absent-bg); border-color:var(--absent); }
 button.ghost { border-color:transparent; background:transparent; } button.ghost:hover { background:var(--sel); }
 button:disabled { opacity:.45; cursor:default; }
-input, select, textarea { background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:5px 8px; }
+input, select, textarea { background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:5px 8px; min-height:32px; }
+textarea { min-height:48px; } input[type=checkbox], input[type=radio] { min-height:0; width:14px; height:14px; margin:0 6px 0 0; vertical-align:middle; accent-color:var(--accent); } label { display:inline-flex; align-items:center; gap:4px; } .sub input, .sub select, .indices-grid input, td input { min-height:26px; padding:2px 6px; }
 input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
 input[type=search] { padding-left:8px; }
 .hidden { display:none !important; }
@@ -49,7 +51,8 @@ a { color:var(--accent); }
 #tabs button:hover { background:var(--panel2); color:var(--text); }
 #tabs button.active { background:var(--accent-bg); color:var(--accent); font-weight:600; }
 .filters { margin-left:auto; display:flex; gap:8px; align-items:center; }
-.filters select, .filters input { max-width:210px; height:32px; }
+.filters select, .filters input { width:190px; height:32px; min-width:0; } .filters input[type=search] { width:170px; }
+.topbar { min-width:0; } #tabs { flex-shrink:0; } .filters { flex-shrink:1; min-width:0; }
 #btn-lock { height:32px; }
 main { padding:14px; height:calc(100vh - 50px); overflow:auto; }
 /* ---- génériques ---- */
@@ -122,10 +125,12 @@ tr.sel td { background:var(--sel); }
 .unsaved::after { content:" •"; color:#ffd166; }
 .indices-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
 .indices-grid table td { padding:2px 4px; } .indices-grid input { width:92px; text-align:right; }
-.indices-grid input.warn { background:var(--doute-bg); border-color:var(--doute); } .indices-grid input.ok { border-color:var(--line2); }
+.indices-grid input.warn { background:var(--doute-bg); border-color:var(--doute); } .indices-grid input.estime { background:var(--absent-bg); border-color:var(--absent); } .indices-grid input.ok { border-color:var(--line2); }
 .stick { position:sticky; top:0; background:var(--bg); z-index:2; padding-bottom:6px; }
 textarea.wide { width:100%; min-height:120px; font-family:ui-monospace, Consolas, monospace; font-size:12px; }
 .hint { font-size:12px; color:var(--muted); margin:6px 0 0; }
+.trunc { display:inline-block; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; cursor:help; }
+td { max-width:420px; overflow:hidden; text-overflow:ellipsis; }
 .toolbar-title { font-weight:600; }
 
 </style>
@@ -167,7 +172,7 @@ textarea.wide { width:100%; min-height:120px; font-family:ui-monospace, Consolas
       <select id="f-actif" title="Filtrer par actif"><option value="">Tous les actifs</option></select>
       <select id="f-preneur" title="Filtrer par locataire"><option value="">Tous les locataires</option></select>
       <input id="f-search" type="search" placeholder="Rechercher…">
-      <button id="btn-lock" title="Verrouiller (Ctrl+L)">🔒 Verrouiller</button>
+      <button id="btn-lock" title="Verrouiller (Ctrl+L)">🔒</button>
     </div>
   </header>
   <main id="view"></main>
@@ -480,7 +485,7 @@ const INDICES = {
       2015: [108.32, 108.38, 108.38, 108.41], 2016: [108.40, 108.40, 108.56, 108.91], 2017: [109.46, 110.00, 110.78, 111.33],
       2018: [111.87, 112.59, 113.45, 114.06], 2019: [114.64, 115.21, 115.60, 116.16], 2020: [116.23, 115.42, 115.70, 115.79],
       2021: [116.73, 118.41, 119.70, 118.59], 2022: [120.61, 123.65, 126.13, 126.05], 2023: [128.68, 131.49, 134.00, 132.63],
-      2024: [133.68, 134.07, 135.21, 135.19], 2025: [136.04, 136.69, null, null],
+      2024: [133.68, 134.07, 135.21, 135.19], 2025: [136.04, 136.69, 136.88, 137.30], 2026: [137.80, null, null, null],
     },
     ILAT: {
       2010: [100.00, 100.37, 100.81, 101.45], 2011: [101.87, 102.17, 102.82, 103.37], 2012: [103.84, 104.44, 104.95, 105.35],
@@ -488,7 +493,7 @@ const INDICES = {
       2015: [107.69, 107.86, 107.98, 108.16], 2016: [108.20, 108.41, 108.69, 108.94], 2017: [109.41, 109.89, 110.36, 110.88],
       2018: [111.45, 112.01, 112.74, 113.30], 2019: [113.88, 114.47, 114.85, 115.43], 2020: [115.53, 114.33, 114.23, 114.06],
       2021: [114.87, 116.46, 117.61, 118.97], 2022: [120.73, 122.65, 125.23, 126.50], 2023: [127.46, 128.74, 131.17, 132.07],
-      2024: [132.54, 133.28, 134.42, 134.99], 2025: [135.70, 136.34, null, null],
+      2024: [132.54, 133.28, 134.42, 134.99], 2025: [135.70, 136.34, 136.95, 137.40], 2026: [137.95, null, null, null],
     },
     ICC: {
       2005: [1270, 1276, 1278, 1332], 2006: [1362, 1366, 1381, 1406], 2007: [1385, 1435, 1443, 1474], 2008: [1497, 1562, 1594, 1523], 2009: [1503, 1498, 1502, 1507],
@@ -496,15 +501,17 @@ const INDICES = {
       2015: [1632, 1614, 1608, 1629], 2016: [1615, 1622, 1643, 1645], 2017: [1650, 1664, 1670, 1667],
       2018: [1671, 1699, 1733, 1703], 2019: [1728, 1746, 1746, 1769], 2020: [1770, 1753, 1765, 1795],
       2021: [1821, 1825, 1886, 1886], 2022: [1948, 1966, 2037, 2077], 2023: [2144, 2146, 2106, 2162],
-      2024: [2227, 2183, 2144, 2160], 2025: [2193, null, null, null],
+      2024: [2227, 2183, 2144, 2160], 2025: [2193, 2201, 2207, 2220], 2026: [2235, null, null, null],
     },
   },
+  // Périodes dont la valeur est une estimation (publication récente non confirmée) : à remplacer impérativement
+  ESTIMES: new Set(['ILC:2025T3', 'ILC:2025T4', 'ILC:2026T1', 'ILAT:2025T3', 'ILAT:2025T4', 'ILAT:2026T1', 'ICC:2025T2', 'ICC:2025T3', 'ICC:2025T4', 'ICC:2026T1']),
   cache: null,
   async load() { INDICES.cache = await DB.all('indices'); return INDICES.cache; },
   // Ajoute les valeurs pré-remplies absentes de la table (sans toucher aux valeurs existantes). Renvoie le nombre ajouté.
   async seedMissing() {
     const rows = await DB.all('indices'); const have = new Set(rows.map(r => r.id)); const out = [];
-    for (const [type, years] of Object.entries(INDICES.PREFILL)) for (const [y, vals] of Object.entries(years)) vals.forEach((v, i) => { const id = `${type}:${y}T${i + 1}`; if (v !== null && !have.has(id)) out.push({ id, type, periode: `${y}T${i + 1}`, valeur: v, verifie: false, source: 'pré-rempli (à vérifier)' }); });
+    for (const [type, years] of Object.entries(INDICES.PREFILL)) for (const [y, vals] of Object.entries(years)) vals.forEach((v, i) => { const id = `${type}:${y}T${i + 1}`; if (v !== null && !have.has(id)) out.push({ id, type, periode: `${y}T${i + 1}`, valeur: v, verifie: false, source: INDICES.ESTIMES.has(id) ? 'ESTIMATION à remplacer' : 'pré-rempli (à vérifier)' }); });
     if (out.length) await DB.putMany('indices', out); INDICES.cache = [...rows, ...out]; return out.length;
   },
   // Modèle de fichier CSV attendu pour l'import
@@ -745,8 +752,9 @@ const EXTRACT = {
     }
   },
   // Exécute toutes les règles ; renvoie {champ: {value, conf, page, snippet, offset}}
-  run(pages, learned = {}) {
+  run(pages, learned = {}, actifs = []) {
     const ctx = EXTRACT.buildText(pages); const out = {};
+    const am = EXTRACT.matchActif(ctx, actifs);
     for (const f of EXTRACT.FIELDS) {
       let res = null;
       // 1. ancres apprises
@@ -770,6 +778,7 @@ const EXTRACT = {
       }
       out[f.key] = res || { value: null, conf: 'absent' };
     }
+    if (am) { out.actif = { value: am.actif.nom, conf: 'ok', offset: am.offset, page: EXTRACT.pageAt(ctx, am.offset), snippet: EXTRACT.snippet(ctx.orig, am.offset, am.len), note: 'actif paramétré' }; out._actif = am.actif; }
     EXTRACT.postProcess(out, ctx);
     return { fields: out, ctx };
   },
@@ -806,6 +815,11 @@ const EXTRACT = {
     if (type === 'trim') { const p = U.parseTrim(v); return p ? [`${p.q}er trimestre ${p.y}`, `${p.q}eme trimestre ${p.y}`, `${p.q}e trimestre ${p.y}`, `${p.q}eme trimestre de l'annee ${p.y}`, `${p.q}er trimestre de l'annee ${p.y}`] : []; }
     if (type === 'int') { const n = +v; const mot = Object.entries(U.motsNombre).find(([k, x]) => x === n); return [String(n), mot ? mot[0] : null].filter(Boolean); }
     return [EXTRACT.normKeepLen(String(v))];
+  },
+  // Reconnaissance d'un actif paramétré (nom ou mots-clés présents dans le texte)
+  matchActif(ctx, actifs) {
+    for (const a of (actifs || [])) { const keys = [a.nom, ...(a.motsCles || '').split(/[;,]/)].map(k => EXTRACT.normKeepLen(String(k || '').trim())).filter(k => k.length > 3); for (const k of keys) { const i = ctx.flat.indexOf(k); if (i >= 0) return { actif: a, offset: i, len: k.length }; } }
+    return null;
   },
   // Cohérence et déductions
   postProcess(out, ctx) {
@@ -966,7 +980,27 @@ const CALC = {
     return (U.daysBetween(a, b) + 1) / (U.daysBetween(p.du, p.au) + 1); // part de la période en franchise
   },
   // Quittancement d'un bail sur [from, to] : lignes par période
-  quittance(bail, from, to, { loyersSeuls = false } = {}) {
+  // Lignes de dépôt de garantie : versement initial puis réajustements à chaque anniversaire d'indexation
+  depotLignes(bail, from, to) {
+    const dp = bail.depot || {}; if (!dp.montant && !dp.mois) return [];
+    const out = []; const mk = (date, libelle, montant, note) => out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode: (bail.yardi && bail.yardi.tenantCodes || []).join(', '), actif: bail.actif, propertyCode: bail.yardi && bail.yardi.propertyCode || '', yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, null), lot: '', unitCode: '', du: date, au: date, periode: date.slice(0, 7), type: 'depot', chargeCode: CALC.code('depot'), libelle, ht: U.round2(montant), tauxTva: 0, tva: 0, ttc: U.round2(montant), coef: 1, prorata: 1, franchise: 0, note });
+    const mois = dp.mois || (bail.loyerAnnuelHT ? Math.round(dp.montant / (CALC.loyerAnnuel(bail) / 12)) : null);
+    const cible = (date) => { const ix = CALC.indexCoef(bail, date); return mois ? U.round2(CALC.loyerAnnuel(bail) * ix.coef / 12 * mois) : U.round2((dp.montant || 0) * ix.coef); };
+    let courant = dp.montant || cible(bail.dateEffet || from);
+    if (bail.dateEffet && bail.dateEffet >= from && bail.dateEffet <= to) mk(bail.dateEffet, `Dépôt de garantie initial${mois ? ` (${mois} mois)` : ''}`, courant);
+    if (dp.reajustement === false) return out;
+    const ix = bail.index || {}; if (!ix.premiereDate || !ix.type || ix.type === 'aucun') return out;
+    let d = ix.premiereDate, n = 0;
+    while (d <= to && n < 80) {
+      if (d >= from && d > (bail.dateEffet || '')) { const c = cible(d); const diff = U.round2(c - courant); if (Math.abs(diff) >= 0.01) mk(d, `Réajustement dépôt de garantie (${U.fmtMoney(courant)} → ${U.fmtMoney(c)})`, diff, `cible ${U.fmtMoney(c)} €`); courant = c; }
+      else if (d > (bail.dateEffet || '')) courant = cible(d);
+      d = U.addMonths(ix.premiereDate, 12 * ++n);
+    }
+    return out;
+  },
+  // Montant HT des loyers calculés sur une plage quelconque [du, au], par code de charge
+  montantSur(bail, du, au) { const r = CALC.quittance(bail, du, au, { loyersSeuls: false, depot: true }); const m = {}; for (const l of r.lignes) m[l.chargeCode] = U.round2((m[l.chargeCode] || 0) + l.ht); return { parCode: m, warnings: r.warnings }; },
+  quittance(bail, from, to, { loyersSeuls = false, depot = false } = {}) {
     const tva = bail.tva && bail.tva.option === false ? 0 : (bail.tva && bail.tva.taux != null ? +bail.tva.taux : 20);
     const mode = bail.prorata || 'jours'; const lignes = []; const warn = new Set();
     const nb = CALC.NB[bail.periodicite || 'trimestriel'];
@@ -984,8 +1018,10 @@ const CALC = {
       const ch = bail.charges || {};
       if (ch.montantAnnuelHT) { const nbc = CALC.NB[ch.periodicite || bail.periodicite || 'trimestriel']; if (nbc === nb) push('charges', ch.mode === 'forfait' ? 'Forfait charges' : 'Provision charges', ch.montantAnnuelHT / nb * pr); else push('charges', 'Charges (périodicité différente)', ch.montantAnnuelHT / nb * pr, { note: `charges ${ch.periodicite}` }); }
       if (ch.taxeFonciereMontant) push('taxeFonciere', 'Taxe foncière', ch.taxeFonciereMontant / nb * pr, { tva: 0 });
-      if (bail.depot && bail.depot.montant && bail.dateEffet >= p.du && bail.dateEffet <= p.au) push('depot', 'Dépôt de garantie', bail.depot.montant, { tva: 0, prorata: 1 });
+      if (!depot && bail.depot && bail.depot.montant && bail.dateEffet >= p.du && bail.dateEffet <= p.au) push('depot', 'Dépôt de garantie', bail.depot.montant, { tva: 0, prorata: 1 });
     }
+    if (depot) lignes.push(...CALC.depotLignes(bail, from, to));
+    lignes.sort((a, b) => a.du.localeCompare(b.du) || (a.type === 'depot') - (b.type === 'depot'));
     return { lignes, warnings: [...warn] };
   },
   // Loyer annuel indexé en vigueur à une date
@@ -1045,25 +1081,35 @@ const YARDI = {
     const byTenant = new Map(); for (const r of rows) if (r.tenantCode && !byTenant.has(r.tenantCode)) byTenant.set(r.tenantCode, r.tenant);
     return [...byTenant].map(([code, name]) => ({ code, name, score: YARDI.similar(bail.preneur || bail.enseigne || '', name.replace(/\(.*\)/, '')) })).filter(x => x.score >= 0.5).sort((a, b) => b.score - a.score).slice(0, 5);
   },
-  // Rapprochement : pour chaque bail relié, compare par (code charge, mois) les montants HT Yardi et calculés
+  // Rapprochement : chaque ligne Yardi est comparée au calcul sur SA période (Charge From → Charge To).
+  // Mode global : agrégation par bail et code de charge sur l'ensemble des périodes Yardi ; mode détail : une ligne par ligne Yardi.
   reconcile(baux, rows, mode = 'global') {
     const out = []; const byTenant = {};
     for (const r of rows) { (byTenant[r.tenantCode] ||= []).push(r); }
     for (const bail of baux) {
       const codes = (bail.yardi && bail.yardi.tenantCodes) || []; if (!codes.length) continue;
-      const yrows = codes.flatMap(c => byTenant[c] || []); if (!yrows.length) { out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, statut: 'Yardi absent', note: `Aucune ligne Yardi pour ${codes.join(', ')}` }); continue; }
-      const dates = yrows.filter(r => r.du && r.au); const from = dates.reduce((m, r) => r.du < m ? r.du : m, dates[0] ? dates[0].du : bail.dateEffet), to = dates.reduce((m, r) => r.au > m ? r.au : m, dates[0] ? dates[0].au : bail.dateFin);
-      const q = CALC.quittance(bail, from, to);
-      const keyOf = (code, du) => mode === 'global' ? code : `${code}|${(du || '').slice(0, 7)}`;
-      const agg = (list, fnKey, fnAmt) => { const m = new Map(); for (const x of list) { const k = fnKey(x); m.set(k, (m.get(k) || 0) + fnAmt(x)); } return m; };
-      const Y = agg(yrows, r => keyOf(r.chargeCode, r.du), r => r.net), C = agg(q.lignes, l => keyOf(l.chargeCode, l.du), l => l.ht);
-      const keys = new Set([...Y.keys(), ...C.keys()]);
-      for (const k of keys) {
-        const [code, mois] = k.split('|'); const y = U.round2(Y.get(k) || 0), c = U.round2(C.get(k) || 0); const ecart = U.round2(y - c);
-        out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, tenantCodes: codes.join(', '), chargeCode: code, mois: mois || `${from} → ${to}`, yardi: y, calcul: c, ecart, statut: !C.has(k) ? 'Yardi seul' : !Y.has(k) ? 'Calcul seul' : Math.abs(ecart) <= 1 ? 'OK' : 'Écart', warnings: q.warnings.join(' ; ') });
+      const yrows = codes.flatMap(c => byTenant[c] || []); if (!yrows.length) { out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, tenantCodes: codes.join(', '), statut: 'Yardi absent', note: `Aucune ligne Yardi pour ${codes.join(', ')}` }); continue; }
+      const base = { bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, tenantCodes: codes.join(', ') };
+      const details = []; const warns = new Set();
+      for (const r of yrows) {
+        if (!r.du || !r.au) { details.push({ ...base, chargeCode: r.chargeCode, mois: '?', yardi: r.net, calcul: null, ecart: null, statut: 'Période manquante', note: 'Charge From / Charge To illisibles' }); continue; }
+        const calc = CALC.montantSur(bail, r.du, r.au); calc.warnings.forEach(w => warns.add(w));
+        const c = calc.parCode[r.chargeCode]; const known = c !== undefined;
+        details.push({ ...base, chargeCode: r.chargeCode, du: r.du, au: r.au, mois: `${U.fmtDate(r.du)} → ${U.fmtDate(r.au)}`, yardi: U.round2(r.net), calcul: known ? c : 0, ecart: U.round2(r.net - (known ? c : 0)), statut: !known ? 'Yardi seul' : Math.abs(r.net - c) <= 1 ? 'OK' : 'Écart', warnings: [...warns].join(' ; ') });
       }
+      // codes calculés mais absents de Yardi sur la plage couverte
+      const dated = yrows.filter(r => r.du && r.au);
+      if (dated.length) {
+        const from = dated.reduce((m, r) => r.du < m ? r.du : m, dated[0].du), to = dated.reduce((m, r) => r.au > m ? r.au : m, dated[0].au);
+        const calc = CALC.montantSur(bail, from, to); const ycodes = new Set(yrows.map(r => r.chargeCode));
+        for (const [code, c] of Object.entries(calc.parCode)) if (!ycodes.has(code) && c) details.push({ ...base, chargeCode: code, du: from, au: to, mois: `${U.fmtDate(from)} → ${U.fmtDate(to)}`, yardi: 0, calcul: c, ecart: U.round2(-c), statut: 'Calcul seul', warnings: [...warns].join(' ; ') });
+      }
+      if (mode === 'detail') { out.push(...details); continue; }
+      const agg = new Map();
+      for (const d of details) { const k = d.chargeCode; const g = agg.get(k) || { ...base, chargeCode: k, yardi: 0, calcul: 0, n: 0, from: d.du, to: d.au, manquant: 0, warnings: d.warnings }; g.yardi = U.round2(g.yardi + (d.yardi || 0)); g.calcul = U.round2(g.calcul + (d.calcul || 0)); g.n++; if (d.du && (!g.from || d.du < g.from)) g.from = d.du; if (d.au && (!g.to || d.au > g.to)) g.to = d.au; if (d.statut === 'Période manquante') g.manquant++; agg.set(k, g); }
+      for (const g of agg.values()) { g.ecart = U.round2(g.yardi - g.calcul); g.mois = `${g.from ? U.fmtDate(g.from) : '?'} → ${g.to ? U.fmtDate(g.to) : '?'} (${g.n} ligne${g.n > 1 ? 's' : ''})`; g.statut = g.manquant ? 'Période manquante' : !g.yardi && g.calcul ? 'Calcul seul' : g.yardi && !g.calcul ? 'Yardi seul' : Math.abs(g.ecart) <= 1 ? 'OK' : 'Écart'; out.push(g); }
     }
-    return out.sort((a, b) => (a.ref || '').localeCompare(b.ref || '') || (a.chargeCode || '').localeCompare(b.chargeCode || '') || (a.mois || '').localeCompare(b.mois || ''));
+    return out.sort((a, b) => (a.ref || '').localeCompare(b.ref || '') || (a.chargeCode || '').localeCompare(b.chargeCode || '') || (a.du || '').localeCompare(b.du || ''));
   },
 };
 
@@ -1105,6 +1151,51 @@ const EXCEL = {
   },
   flatQ(l) { return { 'Référence': l.ref, 'Preneur': l.preneur, 'Tenant id': l.tenantCode, 'Actif': l.actif, 'N° actif': l.propertyCode, 'Property (Yardi)': l.yardiProperty, 'Tenant (Yardi)': l.yardiTenant, 'N° lot': l.lot, 'Code lot': l.unitCode, 'Du': l.du, 'Au': l.au, 'Type': l.type, 'Code charge': l.chargeCode, 'Libellé': l.libelle, 'Base période HT': l.base !== undefined ? U.round2(l.base) : '', 'Coef. indexation': U.round2(l.coef * 10000) / 10000, 'Prorata': U.round2(l.prorata * 10000) / 10000, 'Franchise': l.franchise ? U.round2(l.franchise * 100) + ' %' : '', 'HT': l.ht, 'Taux TVA': l.tauxTva, 'TVA': l.tva, 'TTC': l.ttc, 'Note': l.note || '' }; },
   flatR(r) { return { 'Référence': r.ref, 'Preneur': r.preneur, 'Actif': r.actif, 'Codes Yardi': r.tenantCodes, 'Code charge': r.chargeCode, 'Période': r.mois, 'Yardi HT': r.yardi, 'Calcul HT': r.calcul, 'Écart': r.ecart, 'Statut': r.statut, 'Avertissements': r.warnings || r.note || '' }; },
+  // ----- Classeur de vérification : colonnes essentielles d'abord, puis non essentielles (marquées) -----
+  verifCols() { return UI.FORM.filter(f => !f.group && f.key !== 'statut').sort((a, b) => (b.ess ? 1 : 0) - (a.ess ? 1 : 0)).map(f => ({ ...f, col: f.ess ? f.label : `${f.label} (non essentiel)` })); },
+  verifValue(f, b) { const v = UI.getPath(b, f.path || f.key); if (v === null || v === undefined) return ''; if (f.type === 'bool') return v ? 'oui' : 'non'; if (f.type === 'enum' && f.labels) return f.labels[v] || v; return v; },
+  exportVerif(baux, vide) {
+    const wb = XLSX.utils.book_new(); const cols = EXCEL.verifCols();
+    const rows = (vide ? [{}] : baux).map(b => { const o = { 'Référence': b.ref || '', 'Statut': UI.statutLabel[b.statut] || b.statut || '' }; for (const f of cols) if (f.key !== 'ref') o[f.col] = EXCEL.verifValue(f, b); o['Commentaire vérificateur'] = ''; return o; });
+    EXCEL.sheet(wb, 'Baux', rows, Object.keys(rows[0]));
+    const lots = (vide ? [{ ref: 'REF', lots: [{}] }] : baux).flatMap(b => (Array.isArray(b.lots) ? b.lots : []).map(l => ({ 'Référence': b.ref, 'N° lot': l.lot ?? '', 'Type': l.type ?? 'bureau', 'Surface m²': l.surface ?? '', 'Loyer annuel HT': l.montantAnnuelHT ?? '', 'Code lot Yardi': l.unitCode ?? '' })));
+    EXCEL.sheet(wb, 'Lots', lots.length ? lots : [{ 'Référence': '', 'N° lot': '', 'Type': '', 'Surface m²': '', 'Loyer annuel HT': '', 'Code lot Yardi': '' }]);
+    const aide = [
+      { 'Consigne': 'Une ligne par bail dans l\'onglet Baux ; la colonne Référence sert de clé pour mettre à jour le bail correspondant dans l\'application.' },
+      { 'Consigne': 'Colonnes essentielles en premier ; les colonnes marquées « (non essentiel) » sont facultatives.' },
+      { 'Consigne': 'Dates au format JJ/MM/AAAA ; montants en euros HT ; trimestres d\'indice au format AAAATn (ex. 2024T4).' },
+      { 'Consigne': 'Périodicité : mensuel / trimestriel / semestriel / annuel. Type de bail : commercial, derogatoire, precaire, professionnel, civil, autre. Oui/non pour les cases à cocher.' },
+      { 'Consigne': 'Statut : Validé, À vérifier, Extrait, Anomalie. Mettre « Validé » une fois le bail contrôlé.' },
+      { 'Consigne': 'Onglet Lots : une ligne par lot (type : bureau, entrepot, activite, parking, autre). Une Référence absente de l\'application crée un nouveau bail sans PDF.' },
+    ]; EXCEL.sheet(wb, 'Aide', aide);
+    XLSX.writeFile(wb, vide ? 'modele_verification_baux.xlsx' : `verification_baux_${U.toISO(new Date())}.xlsx`);
+  },
+  // Lecture d'un classeur de vérification -> [{ref, statut, champs:{key:value}, lots:[...]}]
+  parseVerif(ab) {
+    const wb = XLSX.read(ab, { type: 'array', cellDates: true }); const cols = EXCEL.verifCols();
+    const norm = h => U.norm(h).replace(/\s*\(non essentiel\)\s*$/, '').trim();
+    const byLabel = new Map(cols.map(f => [norm(f.label), f]));
+    const wsB = wb.Sheets['Baux'] || wb.Sheets[wb.SheetNames[0]]; if (!wsB) throw new Error('Onglet Baux introuvable');
+    const rowsB = XLSX.utils.sheet_to_json(wsB, { header: 1, raw: false, dateNF: 'dd/mm/yyyy' }); const head = (rowsB[0] || []).map(h => norm(h)); const out = [];
+    const iRef = head.indexOf('reference'), iSt = head.indexOf('statut'); if (iRef < 0) throw new Error('Colonne Référence introuvable dans l\'onglet Baux');
+    const stMap = Object.fromEntries(Object.entries(UI.statutLabel).map(([k, v]) => [U.norm(v), k]));
+    for (const r of rowsB.slice(1)) {
+      const ref = String(r[iRef] || '').trim(); if (!ref) continue; const rec = { ref, champs: {}, lots: null };
+      if (iSt >= 0 && r[iSt]) rec.statut = stMap[U.norm(r[iSt])] || null;
+      head.forEach((h, i) => { const f = byLabel.get(h); if (!f || f.key === 'ref' || r[i] === undefined || r[i] === '') return; rec.champs[f.key] = EXCEL.parseCell(f, String(r[i])); });
+      out.push(rec);
+    }
+    const wsL = wb.Sheets['Lots'];
+    if (wsL) { const rowsL = XLSX.utils.sheet_to_json(wsL, { raw: false }); for (const l of rowsL) { const ref = String(l['Référence'] || '').trim(); const rec = out.find(x => x.ref === ref); if (!rec) continue; (rec.lots ||= []).push({ lot: String(l['N° lot'] || ''), type: U.norm(l['Type'] || 'bureau').replace('entrepôt', 'entrepot') || 'bureau', surface: U.parseNum(l['Surface m²']), montantAnnuelHT: U.parseNum(l['Loyer annuel HT']), unitCode: String(l['Code lot Yardi'] || '') }); } }
+    return out;
+  },
+  parseCell(f, v) {
+    v = v.trim();
+    if (f.type === 'num') return U.parseNum(v); if (f.type === 'int') return U.parseInt(v) ?? (U.parseNum(v) !== null ? Math.round(U.parseNum(v)) : null);
+    if (f.type === 'date') return U.parseDate(v); if (f.type === 'bool') return /^(oui|o|yes|y|1|true|x)$/i.test(v) ? true : /^(non|n|no|0|false)$/i.test(v) ? false : null;
+    if (f.type === 'enum') { const n = U.norm(v); const hit = (f.opts || []).find(o => U.norm(o) === n || (f.labels && U.norm(f.labels[o]) === n)); return hit || null; }
+    return v;
+  },
   // Modèle d'export Yardi attendu pour l'import
   yardiTemplate() {
     const wb = XLSX.utils.book_new();
@@ -1215,7 +1306,7 @@ const UI = {
 'use strict';
 // ---------- Application ----------
 const APP = {
-  view: 'dashboard', baux: [], learned: {}, layout: { list: true, form: 'normal' }, mode: 'essentiel', sel: null, doc: null, docId: null, filters: { actif: '', preneur: '', q: '' }, importing: false, quittance: null, yardiRows: [], rapp: null, sort: {},
+  view: 'dashboard', baux: [], learned: {}, actifs: [], layout: { list: true, form: 'normal' }, mode: 'essentiel', sel: null, doc: null, docId: null, filters: { actif: '', preneur: '', q: '' }, importing: false, quittance: null, yardiRows: [], rapp: null, sort: {},
   // ===== Démarrage / verrouillage =====
   async boot() {
     const lock = UI.$('#lock');
@@ -1244,7 +1335,7 @@ const APP = {
     UI.$('#lock').classList.add('hidden'); UI.$('#app').classList.remove('hidden');
     const added = await INDICES.seedMissing();
     if (added) UI.toast(`${added} valeur(s) d'indices pré-remplies ajoutées : à vérifier avant usage`, 5000);
-    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel');
+    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel'); APP.actifs = await DB.getSetting('actifs', []);
     APP.learned = await DB.getSetting('learned', {}); CALC.codes = await DB.getSetting('codes', null) || { ...CALC.DEFAULT_CODES };
     SESSION.delayMin = await DB.getSetting('lockDelay', 15); SESSION.touch();
     APP.baux = (await DB.all('baux')).map(APP.migrate);
@@ -1289,7 +1380,7 @@ const APP = {
         <div class="card clickable c-accent" data-st="extrait"><div class="muted">Extraits, à contrôler</div><div class="big" style="color:var(--accent)">${n('extrait')}</div></div>
         <div class="card clickable c-doute" data-st="a_verifier"><div class="muted">À vérifier</div><div class="big" style="color:var(--doute)">${n('a_verifier')}</div></div>
         <div class="card clickable c-absent" data-st="anomalie"><div class="muted">Anomalies</div><div class="big" style="color:var(--absent)">${n('anomalie')}</div></div>
-        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')}</div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
+        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')} <span class="muted" style="font-size:14px;font-weight:500">/ ${L.length}</span></div><div class="small muted">${L.length - n('valide')} restant${L.length - n('valide') > 1 ? 's' : ''} à valider</div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
         <div class="card"><div class="muted">Loyer annuel HT cumulé</div><div class="big">${U.fmtMoney(L.reduce((s, b) => s + CALC.loyerAnnuel(b), 0), 0)} €</div></div>
       </div>
       ${L.some(b => b.statut !== 'valide') ? `<div class="row" style="margin-bottom:14px"><button id="go-next" class="primary">▶ Continuer la vérification (${L.filter(b => b.statut !== 'valide').length} restants)</button></div>` : ''}
@@ -1342,7 +1433,7 @@ const APP = {
     APP.render();
   },
   buildBail(file, ab, pages, ocr) {
-    const r = EXTRACT.run(pages, APP.learned); const F = r.fields; const g = k => F[k] && F[k].value;
+    const r = EXTRACT.run(pages, APP.learned, APP.actifs); const F = r.fields; const g = k => F[k] && F[k].value;
     const refFromName = (/^(\d{2}\.\d{3}\.\d{2,3})/.exec(file.name) || [])[1] || '';
     const bail = { id: U.uid(), ref: refFromName, pdfId: U.uid(), pdfName: file.name, pdfSize: file.size, pdfPages: pages.length, ocr, created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [] };
     const simple = ['type', 'bailleur', 'preneur', 'siren', 'emailFacturation', 'actif', 'adresse', 'batiment', 'surfaceTotale', 'parkingsNombre', 'parkingsNumeros', 'destination', 'stockageICPE', 'dateSignature', 'dateEffet', 'dateFin', 'dureeMois', 'resiliation', 'loyerAnnuelHT', 'periodicite', 'terme', 'franchiseMois'];
@@ -1350,7 +1441,7 @@ const APP = {
     bail.index = { type: g('indexType'), basePeriode: g('indexBasePeriode'), baseValeur: g('indexBaseValeur'), revisionPeriode: g('indexRevisionPeriode'), premiereDate: g('indexPremiereDate'), plafond: g('indexPlafond') };
     bail.depot = { montant: g('depotMontant'), mois: g('depotMois') }; bail.tva = { option: g('tvaOption') ?? true, taux: 20 };
     bail.charges = { mode: g('chargesMode'), montantAnnuelHT: g('chargesMontant'), periodicite: g('chargesPeriodicite'), taxeFonciere: g('taxeFonciere') };
-    bail.prorata = 'jours'; bail.yardi = { tenantCodes: [], unitCodes: [], propertyCode: '' };
+    bail.prorata = 'jours'; bail.yardi = { tenantCodes: [], unitCodes: [], propertyCode: F._actif && F._actif.code || '' };
     for (const [k, m] of Object.entries(F)) if (k[0] !== '_') bail.fields[k] = { conf: m.conf, page: m.page, snippet: m.snippet, offset: m.offset, deduit: m.deduit, learned: m.learned, note: m.note, extracted: m.value };
     bail.lots = EXTRACT.lots(pages, bail.loyerAnnuelHT, bail.lotsTexte); bail.paliers = []; bail.avenants = [];
     if (!bail.surfaceTotale) { const st = bail.lots.reduce((s, l) => s + (+l.surface || 0), 0); if (st) bail.surfaceTotale = st; }
@@ -1382,7 +1473,7 @@ const APP = {
   // ===== Vue Baux (3 panneaux) =====
   vBaux(v) {
     let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut);
-    const actifs = [...new Set(APP.baux.map(b => b.actif).filter(Boolean))];
+    const actifs = [...new Set([...APP.actifs.map(a => a.nom), ...APP.baux.map(b => b.actif)].filter(Boolean))];
     v.innerHTML = `<div class="baux">
       <div id="blist"><div class="toolbar row"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['extrait', 'a_verifier', 'anomalie', 'valide'], APP.filters.statut, UI.statutLabel)}</select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
         <div class="list-progress">${APP.filtered().filter(b => b.statut === 'valide').length} / ${APP.filtered().length} validés<div class="progress ok"><div style="width:${APP.filtered().length ? Math.round(APP.filtered().filter(b => b.statut === 'valide').length / APP.filtered().length * 100) : 0}%"></div></div></div>
@@ -1443,6 +1534,7 @@ const APP = {
     t.closest('.f').className = 'f manuel';
     if (f.key === 'yardiTenant') b.yardi.tenantCodes = (v || '').split(/[,\s;]+/).filter(Boolean);
     if (f.key === 'loyerAnnuelHT') { APP.redistribute(b, v || 0); APP.refreshLots(); }
+    if (f.key === 'actif') { const a = APP.actifs.find(x => x.nom === v); if (a && a.code && !b.yardi.propertyCode) { b.yardi.propertyCode = a.code; const pc = UI.$('[data-field="yardiProperty"]'); if (pc) pc.value = a.code; } }
     // apprentissage de l'ancre si la valeur figure dans le texte du PDF
     if (EXTRACT.FIELDS.some(x => x.key === f.key) && v !== null && v !== '' && APP.pages) { APP.learned = EXTRACT.learn(APP.learned, f.key, v, APP.pages); DB.setSetting('learned', APP.learned); }
   },
@@ -1518,8 +1610,8 @@ const APP = {
     const unv = rows.filter(r => !r.verifie).length;
     v.innerHTML = `<div class="panel"><h2>Tables d'indices</h2>
       <div class="row"><button id="idx-csv">Importer un CSV…</button><input type="file" id="idx-file" accept=".csv,.txt" class="hidden"><button id="idx-verify-all">Marquer tout comme vérifié</button><button id="idx-export">Exporter (Excel)</button><button id="idx-template">Modèle CSV d'import</button><span class="muted small">CSV attendu : <code>type;periode;valeur</code> (ex. <code>ILAT;2025T2;136,34</code>). ${unv ? `<span class="warn">${unv} valeur(s) pré-remplies non vérifiées.</span>` : '<span class="ok">Toutes les valeurs sont vérifiées.</span>'}</span></div>
-      <p class="muted small">Modifiez une valeur directement dans la cellule (elle devient « vérifiée »). Case vide = indice non publié / inconnu. Les valeurs pré-remplies proviennent de mémoire et doivent être contrôlées sur insee.fr.</p>
-      <div class="indices-grid">${types.map(t => `<div><h3>${t} <span class="muted" style="text-transform:none;font-weight:normal">${INDICES.TYPES[t]}</span></h3><table><thead><tr><th>Année</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr></thead><tbody>${years.map(y => `<tr><td>${y}</td>${[1, 2, 3, 4].map(q => { const r = INDICES.get(t, `${y}T${q}`); return `<td><input data-idx="${t}" data-p="${y}T${q}" value="${r ? U.fmtNum(r.valeur, 2) : ''}" class="${r ? (r.verifie ? 'ok' : 'warn') : ''}" style="${r && !r.verifie ? 'border-color:var(--doute)' : ''}" title="${r ? U.esc(r.source) : ''}"></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div>
+      <p class="muted small">Modifiez une valeur directement dans la cellule (elle devient « vérifiée »). Case vide = indice non publié / inconnu. <span class="warn">Orange</span> : valeur pré-remplie de mémoire, à contrôler sur insee.fr. <span class="error">Rouge</span> : estimation des dernières publications, à remplacer impérativement par la valeur INSEE.</p>
+      <div class="indices-grid">${types.map(t => `<div><h3>${t} <span class="muted" style="text-transform:none;font-weight:normal">${INDICES.TYPES[t]}</span></h3><table><thead><tr><th>Année</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr></thead><tbody>${years.map(y => `<tr><td>${y}</td>${[1, 2, 3, 4].map(q => { const r = INDICES.get(t, `${y}T${q}`); return `<td><input data-idx="${t}" data-p="${y}T${q}" value="${r ? U.fmtNum(r.valeur, 2) : ''}" class="${r ? (r.verifie ? 'ok' : /ESTIMATION/.test(r.source) ? 'estime' : 'warn') : ''}" title="${r ? U.esc(r.source) : ''}"></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div>
       <div class="row" style="margin-top:8px"><button id="idx-addyear">+ Année antérieure</button></div></div>`;
     v.onchange = async e => { const t = e.target; if (!t.dataset.idx) return; const val = U.parseNum(t.value); if (val === null) { await INDICES.remove(t.dataset.idx, t.dataset.p); } else await INDICES.set(t.dataset.idx, t.dataset.p, val, true); t.className = val === null ? '' : 'ok'; t.style.borderColor = ''; UI.toast('Indice enregistré'); };
     UI.$('#idx-csv', v).onclick = () => UI.$('#idx-file', v).click();
@@ -1531,19 +1623,20 @@ const APP = {
   },
   // ===== Quittancement =====
   vQuittance(v) {
-    const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '', loyersSeuls: true };
+    const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '', loyersSeuls: true, depot: true };
     v.innerHTML = `<div class="panel"><h2>Quittancement</h2><div class="row"><label>Du <input type="date" id="q-from" value="${q.from}"></label><label>au <input type="date" id="q-to" value="${q.to}"></label>
       <select id="q-statut"><option value="">Tous les baux filtrés</option>${UI.opts(['valide', 'a_verifier', 'extrait', 'anomalie'], q.statut, UI.statutLabel)}</select>
-      <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes ni dépôt)</label>
+      <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes)</label>
+      <label><input type="checkbox" id="q-depot" ${q.depot !== false ? 'checked' : ''}> dépôt de garantie (versement initial et réajustements à chaque indexation)</label>
       <button id="q-run" class="primary">Calculer</button><button id="q-export" ${APP.quittance ? '' : 'disabled'}>Exporter (Excel)</button><span class="muted small">Les filtres actif / locataire de la barre s'appliquent.</span></div>
       <div id="q-warn"></div></div><div id="q-out"></div>`;
     const run = () => {
-      APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value, loyersSeuls: UI.$('#q-loyers').checked };
+      APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value, loyersSeuls: UI.$('#q-loyers').checked, depot: UI.$('#q-depot').checked };
       let L = APP.filtered(); if (APP.qParams.statut) L = L.filter(b => b.statut === APP.qParams.statut);
       const lignes = [], warns = [];
-      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
+      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls, depot: APP.qParams.depot }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
       APP.quittance = lignes; UI.$('#q-export').disabled = !lignes.length;
-      UI.$('#q-warn').innerHTML = warns.length ? `<div class="anoms" style="margin-top:8px"><b>${warns.length} avertissement(s)</b><ul style="margin:4px 0 0 16px;padding:0;max-height:120px;overflow:auto">${[...new Set(warns)].map(w => `<li>${U.esc(w)}</li>`).join('')}</ul></div>` : '';
+      UI.$('#q-warn').innerHTML = warns.length ? `<details class="anoms" style="margin-top:8px"><summary style="cursor:pointer"><b>${[...new Set(warns)].length} avertissement(s)</b> <span class="muted small">(cliquer pour afficher)</span></summary><ul style="margin:6px 0 0 16px;padding:0;max-height:160px;overflow:auto">${[...new Set(warns)].map(w => `<li>${U.esc(w)}</li>`).join('')}</ul></details>` : '';
       const tot = lignes.reduce((a, l) => ({ ht: a.ht + l.ht, tva: a.tva + l.tva, ttc: a.ttc + l.ttc }), { ht: 0, tva: 0, ttc: 0 });
       const cols = [{ key: 'ref', label: 'Réf.' }, { key: 'yardiProperty', label: 'Property (Yardi)' }, { key: 'yardiTenant', label: 'Tenant (Yardi)' }, { key: 'tenantCode', label: 'Tenant id' }, { key: 'propertyCode', label: 'N° actif' }, { key: 'lot', label: 'Lot' }, { key: 'du', label: 'Du', render: U.fmtDate }, { key: 'au', label: 'Au', render: U.fmtDate }, { key: 'libelle', label: 'Libellé' }, { key: 'chargeCode', label: 'Code' }, { key: 'coef', label: 'Coef.', num: true, dec: 4 }, { key: 'prorata', label: 'Prorata', num: true, dec: 4 }, { key: 'ht', label: 'HT', num: true }, { key: 'tva', label: 'TVA', num: true }, { key: 'ttc', label: 'TTC', num: true }];
       const t = UI.table(cols, lignes, { sortKey: APP.sort.q, sortDir: APP.sort.qd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
@@ -1573,7 +1666,7 @@ const APP = {
     const run = () => {
       APP.yMode = UI.$('#y-mode').value; APP.yStatut = UI.$('#y-statut').value; APP.rapp = YARDI.reconcile(linked, APP.yardiRows, APP.yMode); UI.$('#y-export').disabled = !APP.rapp.length;
       let rows = APP.rapp; if (APP.yStatut) rows = rows.filter(r => r.statut === APP.yStatut);
-      const cols = [{ key: 'statut', label: 'Statut', render: s => UI.tag(s) }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }, { key: 'tenantCodes', label: 'Codes Yardi' }, { key: 'chargeCode', label: 'Code charge' }, { key: 'mois', label: 'Période' }, { key: 'yardi', label: 'Yardi HT', num: true }, { key: 'calcul', label: 'Calcul HT', num: true }, { key: 'ecart', label: 'Écart', num: true, render: (x, r) => x === undefined ? '' : `<span class="${Math.abs(x) <= 1 ? 'ok' : 'error'}">${U.fmtNum(x)}</span>` }, { key: 'warnings', label: 'Avertissements', render: (x, r) => U.esc(x || r.note || '') }];
+      const cols = [{ key: 'statut', label: 'Statut', render: s => UI.tag(s) }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }, { key: 'tenantCodes', label: 'Codes Yardi' }, { key: 'chargeCode', label: 'Code charge' }, { key: 'mois', label: 'Période' }, { key: 'yardi', label: 'Yardi HT', num: true }, { key: 'calcul', label: 'Calcul HT', num: true }, { key: 'ecart', label: 'Écart', num: true, render: (x, r) => x === undefined ? '' : `<span class="${Math.abs(x) <= 1 ? 'ok' : 'error'}">${U.fmtNum(x)}</span>` }, { key: 'warnings', label: 'Avertissements', render: (x, r) => { const t = x || r.note || ''; if (!t) return ''; const items = t.split(' ; ').filter(Boolean); return `<span class="trunc" title="${U.esc(items.join('\n'))}">${items.length > 1 ? `<b>${items.length}</b> · ` : ''}${U.esc(items[0])}</span>`; } }];
       const t = UI.table(cols, rows, { sortKey: APP.sort.y, sortDir: APP.sort.yd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
       const nEc = APP.rapp.filter(r => r.statut !== 'OK').length;
       UI.$('#y-out').innerHTML = `<div class="panel"><div class="row" style="justify-content:space-between"><b>${rows.length} lignes affichées</b><span>${nEc} ligne(s) à corriger sur ${APP.rapp.length}</span></div>${t.html}</div>`;
@@ -1583,6 +1676,26 @@ const APP = {
     if (APP.rapp && APP.yardiRows.length && linked.length) run();
   },
   async saveYardi(rows, name) { if (!rows.length) throw new Error('Aucune ligne reconnue'); await DB.put('yardi', { id: 'current', date: new Date().toISOString(), name, rows }); APP.rapp = null; UI.toast(`${rows.length} lignes Yardi importées`); APP.render(); },
+  // Import d'un classeur de vérification (voir EXCEL.parseVerif)
+  async importVerif(recs) {
+    let maj = 0, crees = 0, champs = 0;
+    for (const rec of recs) {
+      let b = APP.baux.find(x => (x.ref || '').trim() === rec.ref); let created = false;
+      if (!b) { b = { id: U.uid(), ref: rec.ref, statut: 'a_verifier', created: new Date().toISOString(), fields: {}, history: [], lots: [], paliers: [], avenants: [], anomalies: [], index: {}, depot: {}, charges: {}, tva: { option: true, taux: 20 }, yardi: { tenantCodes: [], unitCodes: [], propertyCode: '' }, prorata: 'jours' }; created = true; }
+      b.yardi = b.yardi || { tenantCodes: [], unitCodes: [], propertyCode: '' };
+      for (const [k, v] of Object.entries(rec.champs)) {
+        const f = UI.FORM.find(x => x.key === k); if (!f || v === null || v === undefined || v === '') continue;
+        const path = f.path || f.key; const before = UI.getPath(b, path); if (before === v) continue;
+        UI.setPath(b, path, v); (b.fields ||= {})[k] = { conf: 'manuel', note: 'classeur' }; (b.history ||= []).push({ date: new Date().toISOString(), champ: f.label, avant: before, apres: v, source: 'classeur' }); champs++;
+        if (k === 'yardiTenant') b.yardi.tenantCodes = String(v).split(/[,\s;]+/).filter(Boolean);
+      }
+      if (rec.lots) { b.lots = rec.lots; champs++; }
+      if (rec.champs.loyerAnnuelHT !== undefined && Array.isArray(b.lots) && b.lots.length) APP.redistribute(b, rec.champs.loyerAnnuelHT); else b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT;
+      if (rec.statut) b.statut = rec.statut;
+      b.updated = new Date().toISOString(); await DB.put('baux', b); if (created) { APP.baux.push(b); crees++; } else maj++;
+    }
+    return { maj, crees, champs };
+  },
   // ===== Paramètres =====
   vParams(v) {
     const codes = CALC.codes || CALC.DEFAULT_CODES;
@@ -1590,6 +1703,13 @@ const APP = {
       <div class="row"><button id="p-exp-enc" class="primary">Exporter une sauvegarde chiffrée (.bbx)</button><button id="p-exp-clear">Exporter en clair (.json)</button><label><input type="checkbox" id="p-withpdf" checked> inclure les PDF</label></div>
       <div class="row" style="margin-top:8px"><button id="p-imp">Restaurer une sauvegarde…</button><input type="file" id="p-imp-file" accept=".bbx,.json" class="hidden"><label><input type="checkbox" id="p-replace"> remplacer les données existantes</label></div>
       <p class="muted small">La sauvegarde chiffrée utilise un mot de passe de votre choix (AES-256-GCM). L'export en clair contient toutes les données lisibles : à réserver à un emplacement protégé.</p></div>
+      <div class="panel"><h2>Vérification déléguée (classeur Excel)</h2>
+        <div class="row"><button id="p-verif-exp" class="primary">Exporter le classeur de vérification (données actuelles)</button><button id="p-verif-vide">Modèle vide</button><button id="p-verif-imp">Importer un classeur vérifié…</button><input type="file" id="p-verif-file" accept=".xlsx,.xls" class="hidden"></div>
+        <p class="hint">Onglet Baux : colonnes essentielles d'abord, puis « (non essentiel) ». Onglet Lots : une ligne par lot. À l'import, la colonne Référence identifie le bail ; les cellules renseignées remplacent les valeurs de l'application (marquées « saisi »), les cellules vides sont ignorées. Une référence inconnue crée un bail sans PDF.</p></div>
+      <div class="panel"><h2>Actifs (immeubles)</h2>
+        <p class="hint">Liste proposée à la saisie et utilisée pour reconnaître l'actif dans les baux (nom ou mots-clés trouvés dans le texte) et renseigner le n° d'actif Yardi.</p>
+        <table id="p-actifs"><thead><tr><th>Nom</th><th>N° actif Yardi</th><th>Mots-clés de reconnaissance (séparés par ;)</th><th></th></tr></thead><tbody>${APP.actifs.map((a, i) => `<tr><td><input data-actif="${i}" data-k="nom" value="${U.esc(a.nom || '')}" style="width:260px"></td><td><input data-actif="${i}" data-k="code" value="${U.esc(a.code || '')}" style="width:110px"></td><td><input data-actif="${i}" data-k="motsCles" value="${U.esc(a.motsCles || '')}" style="width:100%"></td><td><button class="danger ghost" data-actifdel="${i}">×</button></td></tr>`).join('')}</tbody></table>
+        <div class="row" style="margin-top:8px"><button id="p-actif-add">+ Ajouter un actif</button><button id="p-actif-fromdata">Reprendre les actifs des baux existants</button></div></div>
       <div class="panel"><h2>Export Excel de la base</h2><div class="row"><button id="p-xlsx" class="primary">Exporter la base complète (.xlsx)</button><span class="muted small">Onglets : Baux, Lots, Paliers, Avenants, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
       <div class="panel"><h2>Sécurité</h2><div class="row"><button id="p-pass">Changer le mot de passe maître</button><label>Verrouillage auto après <input type="number" id="p-delay" value="${SESSION.delayMin}" min="0" style="width:60px"> min (0 = jamais)</label></div></div>
       <div class="panel"><h2>Codes de charge Yardi</h2><div class="row">${Object.keys(CALC.DEFAULT_CODES).map(k => `<label>${CALC.LABELS[k] || k} (${k}) <input data-code="${k}" value="${U.esc(codes[k] || '')}" style="width:90px"></label>`).join('')}</div></div>
@@ -1601,6 +1721,14 @@ const APP = {
     UI.$('#p-imp', v).onclick = () => UI.$('#p-imp-file', v).click();
     UI.$('#p-imp-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const text = await U.readFile(f, 'text'); let pw = null; if (text.startsWith('{"format":"bail-bail-chiffre"')) pw = await UI.prompt('Mot de passe de la sauvegarde :', { type: 'password' }); const obj = await CRYPTO.unpackFile(text, pw || ''); const replace = UI.$('#p-replace').checked; if (replace && !(await UI.confirm('Remplacer toutes les données actuelles par la sauvegarde ?', { danger: true, ok: 'Remplacer' }))) return; await DB.importAll(obj, { replace }); APP.baux = (await DB.all('baux')).map(APP.migrate); await INDICES.load(); APP.learned = await DB.getSetting('learned', {}); UI.toast('Sauvegarde restaurée'); APP.render(); } catch (ex) { UI.toast('Échec : ' + (ex.message || 'mot de passe incorrect ?'), 5000); } };
     UI.$('#p-xlsx', v).onclick = () => EXCEL.exportBase(APP.filtered(), INDICES.cache, APP.quittance, APP.rapp);
+    UI.$('#p-verif-exp', v).onclick = () => EXCEL.exportVerif(APP.filtered(), false); UI.$('#p-verif-vide', v).onclick = () => EXCEL.exportVerif([], true);
+    UI.$('#p-verif-imp', v).onclick = () => UI.$('#p-verif-file', v).click();
+    UI.$('#p-verif-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const recs = EXCEL.parseVerif(await U.readFile(f)); const r = await APP.importVerif(recs); UI.toast(`Classeur importé : ${r.maj} bail(x) mis à jour, ${r.crees} créé(s), ${r.champs} champ(s) modifié(s)`, 6000); APP.render(); } catch (ex) { UI.toast('Échec : ' + ex.message, 6000); } };
+    const saveActifs = async () => { APP.actifs = APP.actifs.filter(a => a.nom || a.code || a.motsCles); await DB.setSetting('actifs', APP.actifs); };
+    UI.$$('[data-actif]', v).forEach(i => i.onchange = async () => { APP.actifs[+i.dataset.actif][i.dataset.k] = i.value.trim(); await DB.setSetting('actifs', APP.actifs); });
+    UI.$$('[data-actifdel]', v).forEach(b => b.onclick = async () => { APP.actifs.splice(+b.dataset.actifdel, 1); await saveActifs(); APP.render(); });
+    UI.$('#p-actif-add', v).onclick = async () => { APP.actifs.push({ nom: '', code: '', motsCles: '' }); await DB.setSetting('actifs', APP.actifs); APP.render(); setTimeout(() => { const last = UI.$$('[data-actif][data-k="nom"]').pop(); if (last) last.focus(); }, 50); };
+    UI.$('#p-actif-fromdata', v).onclick = async () => { let n = 0; for (const b of APP.baux) { if (b.actif && !APP.actifs.some(a => a.nom === b.actif)) { APP.actifs.push({ nom: b.actif, code: b.yardi && b.yardi.propertyCode || '', motsCles: '' }); n++; } } await saveActifs(); UI.toast(`${n} actif(s) ajouté(s)`); APP.render(); };
     UI.$('#p-pass', v).onclick = async () => { const o = await UI.prompt('Mot de passe actuel :', { type: 'password' }); if (!o) return; const n = await UI.prompt('Nouveau mot de passe (8 caractères minimum) :', { type: 'password' }); if (!n || n.length < 8) return; const n2 = await UI.prompt('Confirmer le nouveau mot de passe :', { type: 'password' }); if (n !== n2) { UI.toast('Les saisies diffèrent'); return; } UI.toast('Ré-encodage en cours…'); if (await SESSION.changePassword(o, n)) UI.toast('Mot de passe changé'); else UI.toast('Mot de passe actuel incorrect'); };
     UI.$('#p-delay', v).onchange = async e => { SESSION.delayMin = Math.max(0, +e.target.value || 0); await DB.setSetting('lockDelay', SESSION.delayMin); SESSION.touch(); };
     UI.$$('[data-code]', v).forEach(i => i.onchange = async () => { CALC.codes[i.dataset.code] = i.value.trim(); await DB.setSetting('codes', CALC.codes); });

@@ -41,24 +41,34 @@ const YARDI = {
     const byTenant = new Map(); for (const r of rows) if (r.tenantCode && !byTenant.has(r.tenantCode)) byTenant.set(r.tenantCode, r.tenant);
     return [...byTenant].map(([code, name]) => ({ code, name, score: YARDI.similar(bail.preneur || bail.enseigne || '', name.replace(/\(.*\)/, '')) })).filter(x => x.score >= 0.5).sort((a, b) => b.score - a.score).slice(0, 5);
   },
-  // Rapprochement : pour chaque bail relié, compare par (code charge, mois) les montants HT Yardi et calculés
+  // Rapprochement : chaque ligne Yardi est comparée au calcul sur SA période (Charge From → Charge To).
+  // Mode global : agrégation par bail et code de charge sur l'ensemble des périodes Yardi ; mode détail : une ligne par ligne Yardi.
   reconcile(baux, rows, mode = 'global') {
     const out = []; const byTenant = {};
     for (const r of rows) { (byTenant[r.tenantCode] ||= []).push(r); }
     for (const bail of baux) {
       const codes = (bail.yardi && bail.yardi.tenantCodes) || []; if (!codes.length) continue;
-      const yrows = codes.flatMap(c => byTenant[c] || []); if (!yrows.length) { out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, statut: 'Yardi absent', note: `Aucune ligne Yardi pour ${codes.join(', ')}` }); continue; }
-      const dates = yrows.filter(r => r.du && r.au); const from = dates.reduce((m, r) => r.du < m ? r.du : m, dates[0] ? dates[0].du : bail.dateEffet), to = dates.reduce((m, r) => r.au > m ? r.au : m, dates[0] ? dates[0].au : bail.dateFin);
-      const q = CALC.quittance(bail, from, to);
-      const keyOf = (code, du) => mode === 'global' ? code : `${code}|${(du || '').slice(0, 7)}`;
-      const agg = (list, fnKey, fnAmt) => { const m = new Map(); for (const x of list) { const k = fnKey(x); m.set(k, (m.get(k) || 0) + fnAmt(x)); } return m; };
-      const Y = agg(yrows, r => keyOf(r.chargeCode, r.du), r => r.net), C = agg(q.lignes, l => keyOf(l.chargeCode, l.du), l => l.ht);
-      const keys = new Set([...Y.keys(), ...C.keys()]);
-      for (const k of keys) {
-        const [code, mois] = k.split('|'); const y = U.round2(Y.get(k) || 0), c = U.round2(C.get(k) || 0); const ecart = U.round2(y - c);
-        out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, tenantCodes: codes.join(', '), chargeCode: code, mois: mois || `${from} → ${to}`, yardi: y, calcul: c, ecart, statut: !C.has(k) ? 'Yardi seul' : !Y.has(k) ? 'Calcul seul' : Math.abs(ecart) <= 1 ? 'OK' : 'Écart', warnings: q.warnings.join(' ; ') });
+      const yrows = codes.flatMap(c => byTenant[c] || []); if (!yrows.length) { out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, tenantCodes: codes.join(', '), statut: 'Yardi absent', note: `Aucune ligne Yardi pour ${codes.join(', ')}` }); continue; }
+      const base = { bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, tenantCodes: codes.join(', ') };
+      const details = []; const warns = new Set();
+      for (const r of yrows) {
+        if (!r.du || !r.au) { details.push({ ...base, chargeCode: r.chargeCode, mois: '?', yardi: r.net, calcul: null, ecart: null, statut: 'Période manquante', note: 'Charge From / Charge To illisibles' }); continue; }
+        const calc = CALC.montantSur(bail, r.du, r.au); calc.warnings.forEach(w => warns.add(w));
+        const c = calc.parCode[r.chargeCode]; const known = c !== undefined;
+        details.push({ ...base, chargeCode: r.chargeCode, du: r.du, au: r.au, mois: `${U.fmtDate(r.du)} → ${U.fmtDate(r.au)}`, yardi: U.round2(r.net), calcul: known ? c : 0, ecart: U.round2(r.net - (known ? c : 0)), statut: !known ? 'Yardi seul' : Math.abs(r.net - c) <= 1 ? 'OK' : 'Écart', warnings: [...warns].join(' ; ') });
       }
+      // codes calculés mais absents de Yardi sur la plage couverte
+      const dated = yrows.filter(r => r.du && r.au);
+      if (dated.length) {
+        const from = dated.reduce((m, r) => r.du < m ? r.du : m, dated[0].du), to = dated.reduce((m, r) => r.au > m ? r.au : m, dated[0].au);
+        const calc = CALC.montantSur(bail, from, to); const ycodes = new Set(yrows.map(r => r.chargeCode));
+        for (const [code, c] of Object.entries(calc.parCode)) if (!ycodes.has(code) && c) details.push({ ...base, chargeCode: code, du: from, au: to, mois: `${U.fmtDate(from)} → ${U.fmtDate(to)}`, yardi: 0, calcul: c, ecart: U.round2(-c), statut: 'Calcul seul', warnings: [...warns].join(' ; ') });
+      }
+      if (mode === 'detail') { out.push(...details); continue; }
+      const agg = new Map();
+      for (const d of details) { const k = d.chargeCode; const g = agg.get(k) || { ...base, chargeCode: k, yardi: 0, calcul: 0, n: 0, from: d.du, to: d.au, manquant: 0, warnings: d.warnings }; g.yardi = U.round2(g.yardi + (d.yardi || 0)); g.calcul = U.round2(g.calcul + (d.calcul || 0)); g.n++; if (d.du && (!g.from || d.du < g.from)) g.from = d.du; if (d.au && (!g.to || d.au > g.to)) g.to = d.au; if (d.statut === 'Période manquante') g.manquant++; agg.set(k, g); }
+      for (const g of agg.values()) { g.ecart = U.round2(g.yardi - g.calcul); g.mois = `${g.from ? U.fmtDate(g.from) : '?'} → ${g.to ? U.fmtDate(g.to) : '?'} (${g.n} ligne${g.n > 1 ? 's' : ''})`; g.statut = g.manquant ? 'Période manquante' : !g.yardi && g.calcul ? 'Calcul seul' : g.yardi && !g.calcul ? 'Yardi seul' : Math.abs(g.ecart) <= 1 ? 'OK' : 'Écart'; out.push(g); }
     }
-    return out.sort((a, b) => (a.ref || '').localeCompare(b.ref || '') || (a.chargeCode || '').localeCompare(b.chargeCode || '') || (a.mois || '').localeCompare(b.mois || ''));
+    return out.sort((a, b) => (a.ref || '').localeCompare(b.ref || '') || (a.chargeCode || '').localeCompare(b.chargeCode || '') || (a.du || '').localeCompare(b.du || ''));
   },
 };

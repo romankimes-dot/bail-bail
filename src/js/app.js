@@ -1,7 +1,7 @@
 'use strict';
 // ---------- Application ----------
 const APP = {
-  view: 'dashboard', baux: [], learned: {}, layout: { list: true, form: 'normal' }, mode: 'essentiel', sel: null, doc: null, docId: null, filters: { actif: '', preneur: '', q: '' }, importing: false, quittance: null, yardiRows: [], rapp: null, sort: {},
+  view: 'dashboard', baux: [], learned: {}, actifs: [], layout: { list: true, form: 'normal' }, mode: 'essentiel', sel: null, doc: null, docId: null, filters: { actif: '', preneur: '', q: '' }, importing: false, quittance: null, yardiRows: [], rapp: null, sort: {},
   // ===== Démarrage / verrouillage =====
   async boot() {
     const lock = UI.$('#lock');
@@ -30,7 +30,7 @@ const APP = {
     UI.$('#lock').classList.add('hidden'); UI.$('#app').classList.remove('hidden');
     const added = await INDICES.seedMissing();
     if (added) UI.toast(`${added} valeur(s) d'indices pré-remplies ajoutées : à vérifier avant usage`, 5000);
-    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel');
+    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel'); APP.actifs = await DB.getSetting('actifs', []);
     APP.learned = await DB.getSetting('learned', {}); CALC.codes = await DB.getSetting('codes', null) || { ...CALC.DEFAULT_CODES };
     SESSION.delayMin = await DB.getSetting('lockDelay', 15); SESSION.touch();
     APP.baux = (await DB.all('baux')).map(APP.migrate);
@@ -75,7 +75,7 @@ const APP = {
         <div class="card clickable c-accent" data-st="extrait"><div class="muted">Extraits, à contrôler</div><div class="big" style="color:var(--accent)">${n('extrait')}</div></div>
         <div class="card clickable c-doute" data-st="a_verifier"><div class="muted">À vérifier</div><div class="big" style="color:var(--doute)">${n('a_verifier')}</div></div>
         <div class="card clickable c-absent" data-st="anomalie"><div class="muted">Anomalies</div><div class="big" style="color:var(--absent)">${n('anomalie')}</div></div>
-        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')}</div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
+        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')} <span class="muted" style="font-size:14px;font-weight:500">/ ${L.length}</span></div><div class="small muted">${L.length - n('valide')} restant${L.length - n('valide') > 1 ? 's' : ''} à valider</div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
         <div class="card"><div class="muted">Loyer annuel HT cumulé</div><div class="big">${U.fmtMoney(L.reduce((s, b) => s + CALC.loyerAnnuel(b), 0), 0)} €</div></div>
       </div>
       ${L.some(b => b.statut !== 'valide') ? `<div class="row" style="margin-bottom:14px"><button id="go-next" class="primary">▶ Continuer la vérification (${L.filter(b => b.statut !== 'valide').length} restants)</button></div>` : ''}
@@ -128,7 +128,7 @@ const APP = {
     APP.render();
   },
   buildBail(file, ab, pages, ocr) {
-    const r = EXTRACT.run(pages, APP.learned); const F = r.fields; const g = k => F[k] && F[k].value;
+    const r = EXTRACT.run(pages, APP.learned, APP.actifs); const F = r.fields; const g = k => F[k] && F[k].value;
     const refFromName = (/^(\d{2}\.\d{3}\.\d{2,3})/.exec(file.name) || [])[1] || '';
     const bail = { id: U.uid(), ref: refFromName, pdfId: U.uid(), pdfName: file.name, pdfSize: file.size, pdfPages: pages.length, ocr, created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [] };
     const simple = ['type', 'bailleur', 'preneur', 'siren', 'emailFacturation', 'actif', 'adresse', 'batiment', 'surfaceTotale', 'parkingsNombre', 'parkingsNumeros', 'destination', 'stockageICPE', 'dateSignature', 'dateEffet', 'dateFin', 'dureeMois', 'resiliation', 'loyerAnnuelHT', 'periodicite', 'terme', 'franchiseMois'];
@@ -136,7 +136,7 @@ const APP = {
     bail.index = { type: g('indexType'), basePeriode: g('indexBasePeriode'), baseValeur: g('indexBaseValeur'), revisionPeriode: g('indexRevisionPeriode'), premiereDate: g('indexPremiereDate'), plafond: g('indexPlafond') };
     bail.depot = { montant: g('depotMontant'), mois: g('depotMois') }; bail.tva = { option: g('tvaOption') ?? true, taux: 20 };
     bail.charges = { mode: g('chargesMode'), montantAnnuelHT: g('chargesMontant'), periodicite: g('chargesPeriodicite'), taxeFonciere: g('taxeFonciere') };
-    bail.prorata = 'jours'; bail.yardi = { tenantCodes: [], unitCodes: [], propertyCode: '' };
+    bail.prorata = 'jours'; bail.yardi = { tenantCodes: [], unitCodes: [], propertyCode: F._actif && F._actif.code || '' };
     for (const [k, m] of Object.entries(F)) if (k[0] !== '_') bail.fields[k] = { conf: m.conf, page: m.page, snippet: m.snippet, offset: m.offset, deduit: m.deduit, learned: m.learned, note: m.note, extracted: m.value };
     bail.lots = EXTRACT.lots(pages, bail.loyerAnnuelHT, bail.lotsTexte); bail.paliers = []; bail.avenants = [];
     if (!bail.surfaceTotale) { const st = bail.lots.reduce((s, l) => s + (+l.surface || 0), 0); if (st) bail.surfaceTotale = st; }
@@ -168,7 +168,7 @@ const APP = {
   // ===== Vue Baux (3 panneaux) =====
   vBaux(v) {
     let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut);
-    const actifs = [...new Set(APP.baux.map(b => b.actif).filter(Boolean))];
+    const actifs = [...new Set([...APP.actifs.map(a => a.nom), ...APP.baux.map(b => b.actif)].filter(Boolean))];
     v.innerHTML = `<div class="baux">
       <div id="blist"><div class="toolbar row"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['extrait', 'a_verifier', 'anomalie', 'valide'], APP.filters.statut, UI.statutLabel)}</select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
         <div class="list-progress">${APP.filtered().filter(b => b.statut === 'valide').length} / ${APP.filtered().length} validés<div class="progress ok"><div style="width:${APP.filtered().length ? Math.round(APP.filtered().filter(b => b.statut === 'valide').length / APP.filtered().length * 100) : 0}%"></div></div></div>
@@ -229,6 +229,7 @@ const APP = {
     t.closest('.f').className = 'f manuel';
     if (f.key === 'yardiTenant') b.yardi.tenantCodes = (v || '').split(/[,\s;]+/).filter(Boolean);
     if (f.key === 'loyerAnnuelHT') { APP.redistribute(b, v || 0); APP.refreshLots(); }
+    if (f.key === 'actif') { const a = APP.actifs.find(x => x.nom === v); if (a && a.code && !b.yardi.propertyCode) { b.yardi.propertyCode = a.code; const pc = UI.$('[data-field="yardiProperty"]'); if (pc) pc.value = a.code; } }
     // apprentissage de l'ancre si la valeur figure dans le texte du PDF
     if (EXTRACT.FIELDS.some(x => x.key === f.key) && v !== null && v !== '' && APP.pages) { APP.learned = EXTRACT.learn(APP.learned, f.key, v, APP.pages); DB.setSetting('learned', APP.learned); }
   },
@@ -304,8 +305,8 @@ const APP = {
     const unv = rows.filter(r => !r.verifie).length;
     v.innerHTML = `<div class="panel"><h2>Tables d'indices</h2>
       <div class="row"><button id="idx-csv">Importer un CSV…</button><input type="file" id="idx-file" accept=".csv,.txt" class="hidden"><button id="idx-verify-all">Marquer tout comme vérifié</button><button id="idx-export">Exporter (Excel)</button><button id="idx-template">Modèle CSV d'import</button><span class="muted small">CSV attendu : <code>type;periode;valeur</code> (ex. <code>ILAT;2025T2;136,34</code>). ${unv ? `<span class="warn">${unv} valeur(s) pré-remplies non vérifiées.</span>` : '<span class="ok">Toutes les valeurs sont vérifiées.</span>'}</span></div>
-      <p class="muted small">Modifiez une valeur directement dans la cellule (elle devient « vérifiée »). Case vide = indice non publié / inconnu. Les valeurs pré-remplies proviennent de mémoire et doivent être contrôlées sur insee.fr.</p>
-      <div class="indices-grid">${types.map(t => `<div><h3>${t} <span class="muted" style="text-transform:none;font-weight:normal">${INDICES.TYPES[t]}</span></h3><table><thead><tr><th>Année</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr></thead><tbody>${years.map(y => `<tr><td>${y}</td>${[1, 2, 3, 4].map(q => { const r = INDICES.get(t, `${y}T${q}`); return `<td><input data-idx="${t}" data-p="${y}T${q}" value="${r ? U.fmtNum(r.valeur, 2) : ''}" class="${r ? (r.verifie ? 'ok' : 'warn') : ''}" style="${r && !r.verifie ? 'border-color:var(--doute)' : ''}" title="${r ? U.esc(r.source) : ''}"></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div>
+      <p class="muted small">Modifiez une valeur directement dans la cellule (elle devient « vérifiée »). Case vide = indice non publié / inconnu. <span class="warn">Orange</span> : valeur pré-remplie de mémoire, à contrôler sur insee.fr. <span class="error">Rouge</span> : estimation des dernières publications, à remplacer impérativement par la valeur INSEE.</p>
+      <div class="indices-grid">${types.map(t => `<div><h3>${t} <span class="muted" style="text-transform:none;font-weight:normal">${INDICES.TYPES[t]}</span></h3><table><thead><tr><th>Année</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr></thead><tbody>${years.map(y => `<tr><td>${y}</td>${[1, 2, 3, 4].map(q => { const r = INDICES.get(t, `${y}T${q}`); return `<td><input data-idx="${t}" data-p="${y}T${q}" value="${r ? U.fmtNum(r.valeur, 2) : ''}" class="${r ? (r.verifie ? 'ok' : /ESTIMATION/.test(r.source) ? 'estime' : 'warn') : ''}" title="${r ? U.esc(r.source) : ''}"></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div>
       <div class="row" style="margin-top:8px"><button id="idx-addyear">+ Année antérieure</button></div></div>`;
     v.onchange = async e => { const t = e.target; if (!t.dataset.idx) return; const val = U.parseNum(t.value); if (val === null) { await INDICES.remove(t.dataset.idx, t.dataset.p); } else await INDICES.set(t.dataset.idx, t.dataset.p, val, true); t.className = val === null ? '' : 'ok'; t.style.borderColor = ''; UI.toast('Indice enregistré'); };
     UI.$('#idx-csv', v).onclick = () => UI.$('#idx-file', v).click();
@@ -317,19 +318,20 @@ const APP = {
   },
   // ===== Quittancement =====
   vQuittance(v) {
-    const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '', loyersSeuls: true };
+    const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '', loyersSeuls: true, depot: true };
     v.innerHTML = `<div class="panel"><h2>Quittancement</h2><div class="row"><label>Du <input type="date" id="q-from" value="${q.from}"></label><label>au <input type="date" id="q-to" value="${q.to}"></label>
       <select id="q-statut"><option value="">Tous les baux filtrés</option>${UI.opts(['valide', 'a_verifier', 'extrait', 'anomalie'], q.statut, UI.statutLabel)}</select>
-      <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes ni dépôt)</label>
+      <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes)</label>
+      <label><input type="checkbox" id="q-depot" ${q.depot !== false ? 'checked' : ''}> dépôt de garantie (versement initial et réajustements à chaque indexation)</label>
       <button id="q-run" class="primary">Calculer</button><button id="q-export" ${APP.quittance ? '' : 'disabled'}>Exporter (Excel)</button><span class="muted small">Les filtres actif / locataire de la barre s'appliquent.</span></div>
       <div id="q-warn"></div></div><div id="q-out"></div>`;
     const run = () => {
-      APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value, loyersSeuls: UI.$('#q-loyers').checked };
+      APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value, loyersSeuls: UI.$('#q-loyers').checked, depot: UI.$('#q-depot').checked };
       let L = APP.filtered(); if (APP.qParams.statut) L = L.filter(b => b.statut === APP.qParams.statut);
       const lignes = [], warns = [];
-      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
+      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls, depot: APP.qParams.depot }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
       APP.quittance = lignes; UI.$('#q-export').disabled = !lignes.length;
-      UI.$('#q-warn').innerHTML = warns.length ? `<div class="anoms" style="margin-top:8px"><b>${warns.length} avertissement(s)</b><ul style="margin:4px 0 0 16px;padding:0;max-height:120px;overflow:auto">${[...new Set(warns)].map(w => `<li>${U.esc(w)}</li>`).join('')}</ul></div>` : '';
+      UI.$('#q-warn').innerHTML = warns.length ? `<details class="anoms" style="margin-top:8px"><summary style="cursor:pointer"><b>${[...new Set(warns)].length} avertissement(s)</b> <span class="muted small">(cliquer pour afficher)</span></summary><ul style="margin:6px 0 0 16px;padding:0;max-height:160px;overflow:auto">${[...new Set(warns)].map(w => `<li>${U.esc(w)}</li>`).join('')}</ul></details>` : '';
       const tot = lignes.reduce((a, l) => ({ ht: a.ht + l.ht, tva: a.tva + l.tva, ttc: a.ttc + l.ttc }), { ht: 0, tva: 0, ttc: 0 });
       const cols = [{ key: 'ref', label: 'Réf.' }, { key: 'yardiProperty', label: 'Property (Yardi)' }, { key: 'yardiTenant', label: 'Tenant (Yardi)' }, { key: 'tenantCode', label: 'Tenant id' }, { key: 'propertyCode', label: 'N° actif' }, { key: 'lot', label: 'Lot' }, { key: 'du', label: 'Du', render: U.fmtDate }, { key: 'au', label: 'Au', render: U.fmtDate }, { key: 'libelle', label: 'Libellé' }, { key: 'chargeCode', label: 'Code' }, { key: 'coef', label: 'Coef.', num: true, dec: 4 }, { key: 'prorata', label: 'Prorata', num: true, dec: 4 }, { key: 'ht', label: 'HT', num: true }, { key: 'tva', label: 'TVA', num: true }, { key: 'ttc', label: 'TTC', num: true }];
       const t = UI.table(cols, lignes, { sortKey: APP.sort.q, sortDir: APP.sort.qd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
@@ -359,7 +361,7 @@ const APP = {
     const run = () => {
       APP.yMode = UI.$('#y-mode').value; APP.yStatut = UI.$('#y-statut').value; APP.rapp = YARDI.reconcile(linked, APP.yardiRows, APP.yMode); UI.$('#y-export').disabled = !APP.rapp.length;
       let rows = APP.rapp; if (APP.yStatut) rows = rows.filter(r => r.statut === APP.yStatut);
-      const cols = [{ key: 'statut', label: 'Statut', render: s => UI.tag(s) }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }, { key: 'tenantCodes', label: 'Codes Yardi' }, { key: 'chargeCode', label: 'Code charge' }, { key: 'mois', label: 'Période' }, { key: 'yardi', label: 'Yardi HT', num: true }, { key: 'calcul', label: 'Calcul HT', num: true }, { key: 'ecart', label: 'Écart', num: true, render: (x, r) => x === undefined ? '' : `<span class="${Math.abs(x) <= 1 ? 'ok' : 'error'}">${U.fmtNum(x)}</span>` }, { key: 'warnings', label: 'Avertissements', render: (x, r) => U.esc(x || r.note || '') }];
+      const cols = [{ key: 'statut', label: 'Statut', render: s => UI.tag(s) }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }, { key: 'tenantCodes', label: 'Codes Yardi' }, { key: 'chargeCode', label: 'Code charge' }, { key: 'mois', label: 'Période' }, { key: 'yardi', label: 'Yardi HT', num: true }, { key: 'calcul', label: 'Calcul HT', num: true }, { key: 'ecart', label: 'Écart', num: true, render: (x, r) => x === undefined ? '' : `<span class="${Math.abs(x) <= 1 ? 'ok' : 'error'}">${U.fmtNum(x)}</span>` }, { key: 'warnings', label: 'Avertissements', render: (x, r) => { const t = x || r.note || ''; if (!t) return ''; const items = t.split(' ; ').filter(Boolean); return `<span class="trunc" title="${U.esc(items.join('\n'))}">${items.length > 1 ? `<b>${items.length}</b> · ` : ''}${U.esc(items[0])}</span>`; } }];
       const t = UI.table(cols, rows, { sortKey: APP.sort.y, sortDir: APP.sort.yd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
       const nEc = APP.rapp.filter(r => r.statut !== 'OK').length;
       UI.$('#y-out').innerHTML = `<div class="panel"><div class="row" style="justify-content:space-between"><b>${rows.length} lignes affichées</b><span>${nEc} ligne(s) à corriger sur ${APP.rapp.length}</span></div>${t.html}</div>`;
@@ -369,6 +371,26 @@ const APP = {
     if (APP.rapp && APP.yardiRows.length && linked.length) run();
   },
   async saveYardi(rows, name) { if (!rows.length) throw new Error('Aucune ligne reconnue'); await DB.put('yardi', { id: 'current', date: new Date().toISOString(), name, rows }); APP.rapp = null; UI.toast(`${rows.length} lignes Yardi importées`); APP.render(); },
+  // Import d'un classeur de vérification (voir EXCEL.parseVerif)
+  async importVerif(recs) {
+    let maj = 0, crees = 0, champs = 0;
+    for (const rec of recs) {
+      let b = APP.baux.find(x => (x.ref || '').trim() === rec.ref); let created = false;
+      if (!b) { b = { id: U.uid(), ref: rec.ref, statut: 'a_verifier', created: new Date().toISOString(), fields: {}, history: [], lots: [], paliers: [], avenants: [], anomalies: [], index: {}, depot: {}, charges: {}, tva: { option: true, taux: 20 }, yardi: { tenantCodes: [], unitCodes: [], propertyCode: '' }, prorata: 'jours' }; created = true; }
+      b.yardi = b.yardi || { tenantCodes: [], unitCodes: [], propertyCode: '' };
+      for (const [k, v] of Object.entries(rec.champs)) {
+        const f = UI.FORM.find(x => x.key === k); if (!f || v === null || v === undefined || v === '') continue;
+        const path = f.path || f.key; const before = UI.getPath(b, path); if (before === v) continue;
+        UI.setPath(b, path, v); (b.fields ||= {})[k] = { conf: 'manuel', note: 'classeur' }; (b.history ||= []).push({ date: new Date().toISOString(), champ: f.label, avant: before, apres: v, source: 'classeur' }); champs++;
+        if (k === 'yardiTenant') b.yardi.tenantCodes = String(v).split(/[,\s;]+/).filter(Boolean);
+      }
+      if (rec.lots) { b.lots = rec.lots; champs++; }
+      if (rec.champs.loyerAnnuelHT !== undefined && Array.isArray(b.lots) && b.lots.length) APP.redistribute(b, rec.champs.loyerAnnuelHT); else b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT;
+      if (rec.statut) b.statut = rec.statut;
+      b.updated = new Date().toISOString(); await DB.put('baux', b); if (created) { APP.baux.push(b); crees++; } else maj++;
+    }
+    return { maj, crees, champs };
+  },
   // ===== Paramètres =====
   vParams(v) {
     const codes = CALC.codes || CALC.DEFAULT_CODES;
@@ -376,6 +398,13 @@ const APP = {
       <div class="row"><button id="p-exp-enc" class="primary">Exporter une sauvegarde chiffrée (.bbx)</button><button id="p-exp-clear">Exporter en clair (.json)</button><label><input type="checkbox" id="p-withpdf" checked> inclure les PDF</label></div>
       <div class="row" style="margin-top:8px"><button id="p-imp">Restaurer une sauvegarde…</button><input type="file" id="p-imp-file" accept=".bbx,.json" class="hidden"><label><input type="checkbox" id="p-replace"> remplacer les données existantes</label></div>
       <p class="muted small">La sauvegarde chiffrée utilise un mot de passe de votre choix (AES-256-GCM). L'export en clair contient toutes les données lisibles : à réserver à un emplacement protégé.</p></div>
+      <div class="panel"><h2>Vérification déléguée (classeur Excel)</h2>
+        <div class="row"><button id="p-verif-exp" class="primary">Exporter le classeur de vérification (données actuelles)</button><button id="p-verif-vide">Modèle vide</button><button id="p-verif-imp">Importer un classeur vérifié…</button><input type="file" id="p-verif-file" accept=".xlsx,.xls" class="hidden"></div>
+        <p class="hint">Onglet Baux : colonnes essentielles d'abord, puis « (non essentiel) ». Onglet Lots : une ligne par lot. À l'import, la colonne Référence identifie le bail ; les cellules renseignées remplacent les valeurs de l'application (marquées « saisi »), les cellules vides sont ignorées. Une référence inconnue crée un bail sans PDF.</p></div>
+      <div class="panel"><h2>Actifs (immeubles)</h2>
+        <p class="hint">Liste proposée à la saisie et utilisée pour reconnaître l'actif dans les baux (nom ou mots-clés trouvés dans le texte) et renseigner le n° d'actif Yardi.</p>
+        <table id="p-actifs"><thead><tr><th>Nom</th><th>N° actif Yardi</th><th>Mots-clés de reconnaissance (séparés par ;)</th><th></th></tr></thead><tbody>${APP.actifs.map((a, i) => `<tr><td><input data-actif="${i}" data-k="nom" value="${U.esc(a.nom || '')}" style="width:260px"></td><td><input data-actif="${i}" data-k="code" value="${U.esc(a.code || '')}" style="width:110px"></td><td><input data-actif="${i}" data-k="motsCles" value="${U.esc(a.motsCles || '')}" style="width:100%"></td><td><button class="danger ghost" data-actifdel="${i}">×</button></td></tr>`).join('')}</tbody></table>
+        <div class="row" style="margin-top:8px"><button id="p-actif-add">+ Ajouter un actif</button><button id="p-actif-fromdata">Reprendre les actifs des baux existants</button></div></div>
       <div class="panel"><h2>Export Excel de la base</h2><div class="row"><button id="p-xlsx" class="primary">Exporter la base complète (.xlsx)</button><span class="muted small">Onglets : Baux, Lots, Paliers, Avenants, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
       <div class="panel"><h2>Sécurité</h2><div class="row"><button id="p-pass">Changer le mot de passe maître</button><label>Verrouillage auto après <input type="number" id="p-delay" value="${SESSION.delayMin}" min="0" style="width:60px"> min (0 = jamais)</label></div></div>
       <div class="panel"><h2>Codes de charge Yardi</h2><div class="row">${Object.keys(CALC.DEFAULT_CODES).map(k => `<label>${CALC.LABELS[k] || k} (${k}) <input data-code="${k}" value="${U.esc(codes[k] || '')}" style="width:90px"></label>`).join('')}</div></div>
@@ -387,6 +416,14 @@ const APP = {
     UI.$('#p-imp', v).onclick = () => UI.$('#p-imp-file', v).click();
     UI.$('#p-imp-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const text = await U.readFile(f, 'text'); let pw = null; if (text.startsWith('{"format":"bail-bail-chiffre"')) pw = await UI.prompt('Mot de passe de la sauvegarde :', { type: 'password' }); const obj = await CRYPTO.unpackFile(text, pw || ''); const replace = UI.$('#p-replace').checked; if (replace && !(await UI.confirm('Remplacer toutes les données actuelles par la sauvegarde ?', { danger: true, ok: 'Remplacer' }))) return; await DB.importAll(obj, { replace }); APP.baux = (await DB.all('baux')).map(APP.migrate); await INDICES.load(); APP.learned = await DB.getSetting('learned', {}); UI.toast('Sauvegarde restaurée'); APP.render(); } catch (ex) { UI.toast('Échec : ' + (ex.message || 'mot de passe incorrect ?'), 5000); } };
     UI.$('#p-xlsx', v).onclick = () => EXCEL.exportBase(APP.filtered(), INDICES.cache, APP.quittance, APP.rapp);
+    UI.$('#p-verif-exp', v).onclick = () => EXCEL.exportVerif(APP.filtered(), false); UI.$('#p-verif-vide', v).onclick = () => EXCEL.exportVerif([], true);
+    UI.$('#p-verif-imp', v).onclick = () => UI.$('#p-verif-file', v).click();
+    UI.$('#p-verif-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const recs = EXCEL.parseVerif(await U.readFile(f)); const r = await APP.importVerif(recs); UI.toast(`Classeur importé : ${r.maj} bail(x) mis à jour, ${r.crees} créé(s), ${r.champs} champ(s) modifié(s)`, 6000); APP.render(); } catch (ex) { UI.toast('Échec : ' + ex.message, 6000); } };
+    const saveActifs = async () => { APP.actifs = APP.actifs.filter(a => a.nom || a.code || a.motsCles); await DB.setSetting('actifs', APP.actifs); };
+    UI.$$('[data-actif]', v).forEach(i => i.onchange = async () => { APP.actifs[+i.dataset.actif][i.dataset.k] = i.value.trim(); await DB.setSetting('actifs', APP.actifs); });
+    UI.$$('[data-actifdel]', v).forEach(b => b.onclick = async () => { APP.actifs.splice(+b.dataset.actifdel, 1); await saveActifs(); APP.render(); });
+    UI.$('#p-actif-add', v).onclick = async () => { APP.actifs.push({ nom: '', code: '', motsCles: '' }); await DB.setSetting('actifs', APP.actifs); APP.render(); setTimeout(() => { const last = UI.$$('[data-actif][data-k="nom"]').pop(); if (last) last.focus(); }, 50); };
+    UI.$('#p-actif-fromdata', v).onclick = async () => { let n = 0; for (const b of APP.baux) { if (b.actif && !APP.actifs.some(a => a.nom === b.actif)) { APP.actifs.push({ nom: b.actif, code: b.yardi && b.yardi.propertyCode || '', motsCles: '' }); n++; } } await saveActifs(); UI.toast(`${n} actif(s) ajouté(s)`); APP.render(); };
     UI.$('#p-pass', v).onclick = async () => { const o = await UI.prompt('Mot de passe actuel :', { type: 'password' }); if (!o) return; const n = await UI.prompt('Nouveau mot de passe (8 caractères minimum) :', { type: 'password' }); if (!n || n.length < 8) return; const n2 = await UI.prompt('Confirmer le nouveau mot de passe :', { type: 'password' }); if (n !== n2) { UI.toast('Les saisies diffèrent'); return; } UI.toast('Ré-encodage en cours…'); if (await SESSION.changePassword(o, n)) UI.toast('Mot de passe changé'); else UI.toast('Mot de passe actuel incorrect'); };
     UI.$('#p-delay', v).onchange = async e => { SESSION.delayMin = Math.max(0, +e.target.value || 0); await DB.setSetting('lockDelay', SESSION.delayMin); SESSION.touch(); };
     UI.$$('[data-code]', v).forEach(i => i.onchange = async () => { CALC.codes[i.dataset.code] = i.value.trim(); await DB.setSetting('codes', CALC.codes); });

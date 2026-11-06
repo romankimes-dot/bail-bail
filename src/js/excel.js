@@ -34,6 +34,51 @@ const EXCEL = {
   },
   flatQ(l) { return { 'Référence': l.ref, 'Preneur': l.preneur, 'Tenant id': l.tenantCode, 'Actif': l.actif, 'N° actif': l.propertyCode, 'Property (Yardi)': l.yardiProperty, 'Tenant (Yardi)': l.yardiTenant, 'N° lot': l.lot, 'Code lot': l.unitCode, 'Du': l.du, 'Au': l.au, 'Type': l.type, 'Code charge': l.chargeCode, 'Libellé': l.libelle, 'Base période HT': l.base !== undefined ? U.round2(l.base) : '', 'Coef. indexation': U.round2(l.coef * 10000) / 10000, 'Prorata': U.round2(l.prorata * 10000) / 10000, 'Franchise': l.franchise ? U.round2(l.franchise * 100) + ' %' : '', 'HT': l.ht, 'Taux TVA': l.tauxTva, 'TVA': l.tva, 'TTC': l.ttc, 'Note': l.note || '' }; },
   flatR(r) { return { 'Référence': r.ref, 'Preneur': r.preneur, 'Actif': r.actif, 'Codes Yardi': r.tenantCodes, 'Code charge': r.chargeCode, 'Période': r.mois, 'Yardi HT': r.yardi, 'Calcul HT': r.calcul, 'Écart': r.ecart, 'Statut': r.statut, 'Avertissements': r.warnings || r.note || '' }; },
+  // ----- Classeur de vérification : colonnes essentielles d'abord, puis non essentielles (marquées) -----
+  verifCols() { return UI.FORM.filter(f => !f.group && f.key !== 'statut').sort((a, b) => (b.ess ? 1 : 0) - (a.ess ? 1 : 0)).map(f => ({ ...f, col: f.ess ? f.label : `${f.label} (non essentiel)` })); },
+  verifValue(f, b) { const v = UI.getPath(b, f.path || f.key); if (v === null || v === undefined) return ''; if (f.type === 'bool') return v ? 'oui' : 'non'; if (f.type === 'enum' && f.labels) return f.labels[v] || v; return v; },
+  exportVerif(baux, vide) {
+    const wb = XLSX.utils.book_new(); const cols = EXCEL.verifCols();
+    const rows = (vide ? [{}] : baux).map(b => { const o = { 'Référence': b.ref || '', 'Statut': UI.statutLabel[b.statut] || b.statut || '' }; for (const f of cols) if (f.key !== 'ref') o[f.col] = EXCEL.verifValue(f, b); o['Commentaire vérificateur'] = ''; return o; });
+    EXCEL.sheet(wb, 'Baux', rows, Object.keys(rows[0]));
+    const lots = (vide ? [{ ref: 'REF', lots: [{}] }] : baux).flatMap(b => (Array.isArray(b.lots) ? b.lots : []).map(l => ({ 'Référence': b.ref, 'N° lot': l.lot ?? '', 'Type': l.type ?? 'bureau', 'Surface m²': l.surface ?? '', 'Loyer annuel HT': l.montantAnnuelHT ?? '', 'Code lot Yardi': l.unitCode ?? '' })));
+    EXCEL.sheet(wb, 'Lots', lots.length ? lots : [{ 'Référence': '', 'N° lot': '', 'Type': '', 'Surface m²': '', 'Loyer annuel HT': '', 'Code lot Yardi': '' }]);
+    const aide = [
+      { 'Consigne': 'Une ligne par bail dans l\'onglet Baux ; la colonne Référence sert de clé pour mettre à jour le bail correspondant dans l\'application.' },
+      { 'Consigne': 'Colonnes essentielles en premier ; les colonnes marquées « (non essentiel) » sont facultatives.' },
+      { 'Consigne': 'Dates au format JJ/MM/AAAA ; montants en euros HT ; trimestres d\'indice au format AAAATn (ex. 2024T4).' },
+      { 'Consigne': 'Périodicité : mensuel / trimestriel / semestriel / annuel. Type de bail : commercial, derogatoire, precaire, professionnel, civil, autre. Oui/non pour les cases à cocher.' },
+      { 'Consigne': 'Statut : Validé, À vérifier, Extrait, Anomalie. Mettre « Validé » une fois le bail contrôlé.' },
+      { 'Consigne': 'Onglet Lots : une ligne par lot (type : bureau, entrepot, activite, parking, autre). Une Référence absente de l\'application crée un nouveau bail sans PDF.' },
+    ]; EXCEL.sheet(wb, 'Aide', aide);
+    XLSX.writeFile(wb, vide ? 'modele_verification_baux.xlsx' : `verification_baux_${U.toISO(new Date())}.xlsx`);
+  },
+  // Lecture d'un classeur de vérification -> [{ref, statut, champs:{key:value}, lots:[...]}]
+  parseVerif(ab) {
+    const wb = XLSX.read(ab, { type: 'array', cellDates: true }); const cols = EXCEL.verifCols();
+    const norm = h => U.norm(h).replace(/\s*\(non essentiel\)\s*$/, '').trim();
+    const byLabel = new Map(cols.map(f => [norm(f.label), f]));
+    const wsB = wb.Sheets['Baux'] || wb.Sheets[wb.SheetNames[0]]; if (!wsB) throw new Error('Onglet Baux introuvable');
+    const rowsB = XLSX.utils.sheet_to_json(wsB, { header: 1, raw: false, dateNF: 'dd/mm/yyyy' }); const head = (rowsB[0] || []).map(h => norm(h)); const out = [];
+    const iRef = head.indexOf('reference'), iSt = head.indexOf('statut'); if (iRef < 0) throw new Error('Colonne Référence introuvable dans l\'onglet Baux');
+    const stMap = Object.fromEntries(Object.entries(UI.statutLabel).map(([k, v]) => [U.norm(v), k]));
+    for (const r of rowsB.slice(1)) {
+      const ref = String(r[iRef] || '').trim(); if (!ref) continue; const rec = { ref, champs: {}, lots: null };
+      if (iSt >= 0 && r[iSt]) rec.statut = stMap[U.norm(r[iSt])] || null;
+      head.forEach((h, i) => { const f = byLabel.get(h); if (!f || f.key === 'ref' || r[i] === undefined || r[i] === '') return; rec.champs[f.key] = EXCEL.parseCell(f, String(r[i])); });
+      out.push(rec);
+    }
+    const wsL = wb.Sheets['Lots'];
+    if (wsL) { const rowsL = XLSX.utils.sheet_to_json(wsL, { raw: false }); for (const l of rowsL) { const ref = String(l['Référence'] || '').trim(); const rec = out.find(x => x.ref === ref); if (!rec) continue; (rec.lots ||= []).push({ lot: String(l['N° lot'] || ''), type: U.norm(l['Type'] || 'bureau').replace('entrepôt', 'entrepot') || 'bureau', surface: U.parseNum(l['Surface m²']), montantAnnuelHT: U.parseNum(l['Loyer annuel HT']), unitCode: String(l['Code lot Yardi'] || '') }); } }
+    return out;
+  },
+  parseCell(f, v) {
+    v = v.trim();
+    if (f.type === 'num') return U.parseNum(v); if (f.type === 'int') return U.parseInt(v) ?? (U.parseNum(v) !== null ? Math.round(U.parseNum(v)) : null);
+    if (f.type === 'date') return U.parseDate(v); if (f.type === 'bool') return /^(oui|o|yes|y|1|true|x)$/i.test(v) ? true : /^(non|n|no|0|false)$/i.test(v) ? false : null;
+    if (f.type === 'enum') { const n = U.norm(v); const hit = (f.opts || []).find(o => U.norm(o) === n || (f.labels && U.norm(f.labels[o]) === n)); return hit || null; }
+    return v;
+  },
   // Modèle d'export Yardi attendu pour l'import
   yardiTemplate() {
     const wb = XLSX.utils.book_new();
