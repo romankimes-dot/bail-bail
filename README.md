@@ -30,15 +30,17 @@ Chaque fichier est chiffré (AES-256-GCM, clé dérivée du mot de passe par PBK
 
 1. **Tableau de bord** : glisser-déposer les PDF (ou un dossier entier). Extraction en file d'attente, OCR automatique si nécessaire.
 2. **Baux** : liste filtrable (actif, locataire, statut, recherche), PDF au centre, formulaire à droite.
+   Statuts : « À vérifier » ou « Validé » ; les anomalies détectées sont un indicateur séparé. Champ « Tacite reconduction » : un bail en reconduction annuelle ou à durée indéterminée est quittancé au-delà de sa date de fin.
    Chaque champ est coloré : vert confiant, orange douteux, rouge non trouvé, bleu saisi. L'œil affiche le passage source dans le PDF.
    Raccourcis : <kbd>Ctrl</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd> bail suivant/précédent, <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> valider, <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer.
    **Avenants** : le bouton « + Avenant » crée une fiche liée au bail avec sa propre date d'effet ; seuls les champs renseignés dans l'avenant remplacent ceux du bail, et le quittancement du bail applique chaque avenant à partir de sa date d'effet (découpe de la période). Les avenants apparaissent sous leur bail dans la liste.
    Chaque correction apprend une « ancre » (contexte précédant la valeur) réutilisée pour les baux de même trame
    (« Ré-extraire » dans la fiche ou pour tous les non validés dans Paramètres).
-3. **Indices** : tables pré-remplies de mémoire, **à vérifier sur insee.fr** (case orange = non vérifié). Saisie directe ou import CSV `type;periode;valeur`.
-4. **Quittancement** : période, bouton « CSV de contrôle » (détail jours, indices, coefficients, limité au locataire filtré), calcul par bail avec découpe aux dates anniversaires d'indexation, prorata (jours réels ou 30/360 par bail), franchise, paliers, export Excel.
-5. **Yardi** : import de l'export (xlsx/csv ou collage), association des codes locataire `t…` (automatique par nom, puis vérification dans la fiche), rapprochement global par code charge ou détail par mois, export des corrections.
-6. **Paramètres** : sauvegarde/restauration, export Excel complet, mot de passe, délai de verrouillage, codes de charge Yardi.
+3. **Termes** : baux arrivant à terme dans l'horizon choisi (fin effective après tacite reconduction, facultés triennales, baux échus), filtre par asset manager, export Excel, actions en masse (reconduire d'un an, marquer en reconduction annuelle, fixer une date de fin) et préparation d'un mail récapitulatif par asset manager ouvert dans votre messagerie.
+4. **Indices** : tables pré-remplies de mémoire, **à vérifier sur insee.fr** (case orange = non vérifié). Saisie directe ou import CSV `type;periode;valeur`.
+5. **Quittancement** : période, bouton « CSV de contrôle » (détail jours, indices, coefficients, limité au locataire filtré), calcul par bail avec découpe aux dates anniversaires d'indexation, prorata (jours réels ou 30/360 par bail), franchise, paliers, export Excel.
+6. **Yardi** : import de l'export (xlsx/csv ou collage), association des codes locataire `t…` (automatique par nom, puis vérification dans la fiche), rapprochement global par code charge ou détail par mois, export des corrections.
+7. **Paramètres** : sauvegarde/restauration, export Excel complet, mot de passe, délai de verrouillage, codes de charge Yardi.
 
 ## Développement
 

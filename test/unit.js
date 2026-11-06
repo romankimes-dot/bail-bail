@@ -51,4 +51,11 @@ const qa2 = CALC.quittanceFamille(b, [{ ...av, dateEffet: '2027-05-01' }], '2027
 eq(qa2.lignes.map(l => [l.du, l.au, l.ht]), [['2027-04-01', '2027-04-30', 989.01], ['2027-05-01', '2027-06-30', 4021.98]], 'avenant en cours de trimestre : découpe');
 // --- montantSur (rapprochement) borné à la période ---
 eq(CALC.montantSur(b, '2027-04-01', '2027-06-30').parCode, { un_ro_t: 3000 }, 'montant borné au trimestre');
+// --- tacite reconduction ---
+const br = { ...b, dateEffet: '2020-01-01', dateFin: '2025-12-31', index: {} };
+eq(CALC.periodes(br, '2026-01-01', '2026-12-31').length, 0, 'fin ferme : rien après la date de fin');
+eq(CALC.periodes({ ...br, reconduction: 'annuelle' }, '2026-01-01', '2026-12-31').map(p => p.du), ['2026-01-01', '2026-04-01', '2026-07-01', '2026-10-01'], 'reconduction annuelle : quittancé après la fin');
+eq(CALC.finEffective({ ...br, reconduction: 'annuelle' }, '2027-03-01'), '2027-12-31', 'fin effective prolongée par pas de 12 mois');
+eq(CALC.periodes({ ...br, reconduction: 'indeterminee' }, '2030-01-01', '2030-03-31').length, 1, 'durée indéterminée : pas de fin');
+eq(CALC.quittance({ ...br, reconduction: 'annuelle' }, '2026-01-01', '2026-03-31', { loyersSeuls: true }).warnings.length, 1, 'avertissement de reconduction');
 console.log(`${n - ko}/${n} tests OK`); process.exit(ko ? 1 : 0);

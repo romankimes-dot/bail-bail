@@ -49,11 +49,17 @@ const CALC = {
     }
     return res;
   },
-  // Périodes de facturation (calendaires) couvrant [from, to] ∩ [dateEffet, dateFin]
+  // Date de fin effective : prolongée par tacite reconduction annuelle (par pas de 12 mois) ou sans fin si durée indéterminée
+  finEffective(bail, to) {
+    if (!bail.dateFin) return null; if (bail.reconduction === 'indeterminee') return null;
+    if (bail.reconduction === 'annuelle') { let fin = bail.dateFin, n = 0; while (fin < to && n < 60) { fin = U.addMonths(fin, 12); n++; } return fin; }
+    return bail.dateFin;
+  },
+  // Périodes de facturation (calendaires) couvrant [from, to] ∩ [dateEffet, dateFin effective]
   periodes(bail, from, to, periodicite) {
     const per = periodicite || bail.periodicite || 'trimestriel'; const nbm = CALC.MONTHS[per] || 3;
     const start = bail.dateEffet && bail.dateEffet > from ? bail.dateEffet : from;
-    const end = bail.dateFin && bail.dateFin < to ? bail.dateFin : to;
+    const finEff = CALC.finEffective(bail, to); const end = finEff && finEff < to ? finEff : to;
     if (!start || !end || start > end) return [];
     const out = []; let cur = U.startOfMonth(start);
     // aligne sur le début de trimestre/semestre civil
@@ -125,7 +131,8 @@ const CALC = {
     const avs = CALC.avenantsDe(bail, avenants); if (!avs.length) return CALC.quittance(bail, from, to, opts);
     const lignes = [], warn = new Set();
     // bornes : le bail (ou le dernier avenant qui prolonge) ; découpe aux dates d'effet des avenants
-    const fin = [bail.dateFin, ...avs.map(a => a.dateFin)].filter(Boolean).sort().pop() || to;
+    const last = avs[avs.length - 1]; const finBase = [bail.dateFin, ...avs.map(a => a.dateFin)].filter(Boolean).sort().pop() || null;
+    const fin = CALC.finEffective({ dateFin: finBase, reconduction: last.reconduction || bail.reconduction }, to) || to;
     const cuts = avs.map(a => a.dateEffet);
     for (const p of CALC.splitAtAnniversaries(bail, CALC.periodes({ ...bail, dateFin: fin }, from, to), cuts)) {
       const eff = CALC.enVigueur(bail, avs, p.du);
@@ -143,6 +150,8 @@ const CALC = {
     const tva = bail.tva && bail.tva.option === false ? 0 : (bail.tva && bail.tva.taux != null ? +bail.tva.taux : 20);
     const mode = bail.prorata || 'jours'; const lignes = []; const warn = new Set();
     const nb = CALC.NB[bail.periodicite || 'trimestriel'];
+    if (bail.dateFin && bail.dateFin < to && bail.reconduction === 'annuelle') warn.add(`Bail reconduit tacitement au-delà du ${U.fmtDate(bail.dateFin)} (reconduction annuelle)`);
+    if (bail.dateFin && bail.dateFin < to && bail.reconduction === 'indeterminee') warn.add(`Bail à durée indéterminée au-delà du ${U.fmtDate(bail.dateFin)}`);
     for (const p of (_noSplit ? CALC.periodes(bail, from, to) : CALC.splitAtAnniversaries(bail, CALC.periodes(bail, from, to)))) {
       const pr = CALC.prorata(p, mode); const fr = CALC.inFranchise(bail, p);
       const ix = CALC.indexCoef(bail, p.du); ix.missing.forEach(m => warn.add(`Indice ${bail.index.type} ${m} manquant`)); ix.unverified.forEach(m => warn.add(`Indice ${bail.index.type} ${m} non vérifié`));
@@ -169,7 +178,7 @@ const CALC = {
   echeances(bail) {
     if (!bail.dateEffet) return []; const out = []; const type = bail.type || 'commercial';
     if (type === 'commercial') for (let k = 3; k < (bail.dureeMois || 108) / 12; k += 3) out.push({ libelle: `Faculté de résiliation triennale`, date: U.addDays(U.addMonths(bail.dateEffet, k * 12), -1), preavis: U.addMonths(U.addMonths(bail.dateEffet, k * 12), -6) });
-    if (bail.dateFin) out.push({ libelle: 'Fin du bail', date: bail.dateFin, preavis: type === 'commercial' ? U.addMonths(bail.dateFin, -6) : null });
+    if (bail.dateFin) { const today = U.toISO(new Date()); let fin = bail.dateFin, n = 0; if (bail.reconduction === 'annuelle') while (fin < today && n < 60) { fin = U.addMonths(fin, 12); n++; } out.push({ libelle: bail.reconduction === 'indeterminee' ? 'Fin initiale (durée indéterminée)' : n ? `Fin de reconduction annuelle (initiale ${U.fmtDate(bail.dateFin)})` : 'Fin du bail', date: fin, preavis: type === 'commercial' ? U.addMonths(fin, -6) : null, fin: true }); }
     if (bail.index && bail.index.premiereDate) { let d = bail.index.premiereDate; const today = U.toISO(new Date()); let n = 0; while (d < today && n < 40) { d = U.addMonths(d, 12); n++; } out.push({ libelle: 'Prochaine indexation', date: d }); }
     return out.sort((a, b) => a.date.localeCompare(b.date));
   },

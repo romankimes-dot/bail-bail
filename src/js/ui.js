@@ -1,6 +1,6 @@
 'use strict';
 // ---------- Composants d'interface ----------
-const STATUT_LABEL = { extrait: 'Extrait', a_verifier: 'À vérifier', valide: 'Validé', anomalie: 'Anomalie' };
+const STATUT_LABEL = { a_verifier: 'À vérifier', valide: 'Validé' };
 const UI = {
   $: (s, el = document) => el.querySelector(s), $$: (s, el = document) => [...el.querySelectorAll(s)],
   toast(msg, ms = 2500) { const t = UI.$('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(UI._tt); UI._tt = setTimeout(() => t.classList.remove('show'), ms); },
@@ -23,7 +23,7 @@ const UI = {
   FORM: [
     { group: 'Identification' },
     { key: 'ref', ess: true, label: 'Référence', type: 'text' }, { key: 'type', ess: true, label: 'Type de bail', type: 'enum', opts: ['commercial', 'derogatoire', 'precaire', 'professionnel', 'civil', 'avenant', 'autre'], labels: { commercial: 'Commercial 3/6/9', derogatoire: 'Dérogatoire', precaire: 'Précaire', professionnel: 'Professionnel', civil: 'Civil', avenant: 'Avenant', autre: 'Autre' } },
-    { key: 'statut', ess: true, label: 'Statut', type: 'enum', opts: ['extrait', 'a_verifier', 'valide', 'anomalie'], labels: STATUT_LABEL },
+    { key: 'statut', ess: true, label: 'Statut', type: 'enum', opts: ['a_verifier', 'valide'], labels: STATUT_LABEL },
     { key: 'bailleur', label: 'Bailleur', type: 'text' }, { key: 'gestionnaire', label: 'Gestionnaire', type: 'text' },
     { key: 'preneur', ess: true, label: 'Preneur', type: 'text' }, { key: 'enseigne', label: 'Enseigne', type: 'text' }, { key: 'siren', label: 'SIREN preneur', type: 'text' }, { key: 'emailFacturation', label: 'Email facturation', type: 'text' },
     { group: 'Lieux loués' },
@@ -32,6 +32,7 @@ const UI = {
     { key: 'destination', label: 'Destination', type: 'textarea' }, { key: 'stockageICPE', label: 'Stockage combustible max', type: 'text' },
     { group: 'Durée' },
     { key: 'dateSignature', ess: true, label: 'Date de signature', type: 'date' }, { key: 'dateEffet', ess: true, label: "Date d'effet", type: 'date' }, { key: 'dateFin', ess: true, label: "Date d'expiration", type: 'date' }, { key: 'dureeMois', ess: true, label: 'Durée (mois)', type: 'int' },
+    { key: 'reconduction', ess: true, label: 'Tacite reconduction', type: 'enum', opts: ['aucune', 'annuelle', 'indeterminee'], labels: { aucune: 'Aucune (fin ferme)', annuelle: 'Annuelle (quittancé au-delà de la date de fin)', indeterminee: 'Durée indéterminée' } },
     { key: 'resiliation', label: 'Résiliation anticipée', type: 'textarea' },
     { group: 'Loyer et facturation' },
     { key: 'loyerAnnuelHT', ess: true, label: 'Loyer annuel HT total (€)', type: 'num', hint: 'réparti sur les lots au prorata des m²' },

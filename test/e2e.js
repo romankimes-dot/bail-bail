@@ -66,8 +66,17 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   await p.click('#tabs button[data-view="dashboard"]'); await p.setInputFiles('#in-files', [pdfB]); await p.waitForFunction(() => APP.lastImport && /rattach/.test(APP.lastImport) && !APP.importing);
   console.log(await p.evaluate(() => [APP.lastImport, APP.baux.map(b => [b.ref, !!b.pdfId, b.preneur, b.loyerAnnuelHT, b.dateEffet])]));
   await p.click('#tabs button[data-view="params"]'); await p.waitForSelector('#p-actif-fromdata');
+  // asset managers + actifs + vue termes
+  await p.click('#p-am-add'); await p.waitForTimeout(200); await p.fill('[data-am="0"][data-k="prenom"]', 'Alice'); await p.fill('[data-am="0"][data-k="nom"]', 'Martin'); await p.fill('[data-am="0"][data-k="email"]', 'alice@exemple.test'); await p.press('[data-am="0"][data-k="email"]', 'Tab'); await p.waitForTimeout(200);
   // actifs paramétrés
-  await p.click('#p-actif-fromdata'); await p.waitForTimeout(300); console.log('actifs', JSON.stringify(await p.evaluate(() => APP.actifs)));
+  await p.click('#p-actif-fromdata'); await p.waitForTimeout(300); await p.selectOption('[data-actif="0"][data-k="am"]', { index: 1 }); await p.waitForTimeout(200); console.log('actifs', JSON.stringify(await p.evaluate(() => APP.actifs)));
+  // termes : le bail test finit en 2033 (hors horizon) -> on force une fin proche et on teste la reconduction en masse
+  await p.evaluate(async () => { const b = APP.baux[0]; b.dateFin = U.addMonths(U.toISO(new Date()), 3); b.reconduction = 'aucune'; await DB.put('baux', b); });
+  await p.click('#tabs button[data-view="termes"]'); await p.waitForSelector('#t-mail'); await p.screenshot({ path: path.join(shots, '8-termes.png') });
+  console.log('termes', JSON.stringify(await p.evaluate(() => APP.termes(APP.filtered(), 12).map(t => [t.type, t.date, t.b.ref]))));
+  await p.check('[data-sel]'); await p.click('#t-reconduire'); await p.waitForTimeout(300);
+  console.log('après reconduction', JSON.stringify(await p.evaluate(() => [APP.baux[0].dateFin, APP.termes(APP.filtered(), 12).length])));
+  await p.click('#t-mail'); await p.waitForSelector('#m-body'); console.log('mail :', JSON.stringify(await p.evaluate(() => [document.querySelector('#m-to').value, document.querySelector('#m-subject').value, document.querySelector('#m-body').value.slice(0, 120)]))); await p.click('#modal [data-close]');
   await p.screenshot({ path: path.join(shots, '7-params.png') });
   console.log('erreurs page :', errors); await b.close();
 })().catch(e => { console.error('ECHEC', e); process.exit(1); });

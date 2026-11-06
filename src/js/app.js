@@ -35,7 +35,7 @@ const APP = {
     UI.$('#lock').classList.add('hidden'); UI.$('#app').classList.remove('hidden');
     const added = await INDICES.seedMissing();
     if (added) UI.toast(`${added} valeur(s) d'indices pré-remplies ajoutées : à vérifier avant usage`, 5000);
-    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel'); APP.actifs = await DB.getSetting('actifs', []);
+    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel'); APP.actifs = await DB.getSetting('actifs', []); APP.ams = await DB.getSetting('ams', []);
     APP.learned = await DB.getSetting('learned', {}); CALC.codes = await DB.getSetting('codes', null) || { ...CALC.DEFAULT_CODES };
     SESSION.delayMin = await DB.getSetting('lockDelay', 15); SESSION.touch();
     APP.baux = (await DB.all('baux')).map(APP.migrate);
@@ -73,7 +73,7 @@ const APP = {
     return APP.baux.filter(b => (opts.avecAvenants || !APP.isAvenant(b)) && (!APP.filters.etat || APP.etatOf(APP.isAvenant(b) ? (APP.baux.find(p => p.id === b.parentId) || b) : b) === APP.filters.etat) && (!APP.filters.actif || b.actif === APP.filters.actif) && (!APP.filters.preneur || b.preneur === APP.filters.preneur) && (!q || U.norm([b.ref, b.preneur, b.enseigne, b.actif, b.lotsTexte, ...(Array.isArray(b.lots) ? b.lots.map(l => l.lot) : []), b.bailleur, b.pdfName, b.commentaires, b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.join(' ')].join(' ')).includes(q)))
       .sort((a, b) => (a.actif || '').localeCompare(b.actif || '') || (a.preneur || '').localeCompare(b.preneur || ''));
   },
-  render() { APP.refreshFilterLists(); const v = UI.$('#view'); v.innerHTML = ''; ({ dashboard: APP.vDashboard, baux: APP.vBaux, indices: APP.vIndices, quittance: APP.vQuittance, yardi: APP.vYardi, params: APP.vParams })[APP.view](v); },
+  render() { APP.refreshFilterLists(); const v = UI.$('#view'); v.innerHTML = ''; ({ dashboard: APP.vDashboard, termes: APP.vTermes, baux: APP.vBaux, indices: APP.vIndices, quittance: APP.vQuittance, yardi: APP.vYardi, params: APP.vParams })[APP.view](v); },
   // ===== Tableau de bord =====
   vDashboard(v) {
     const L = APP.filtered(); const n = s => L.filter(b => b.statut === s).length;
@@ -83,10 +83,10 @@ const APP = {
     v.innerHTML = `
       <div class="cards">
         <div class="card clickable" data-st=""><div class="muted">Baux</div><div class="big">${L.length}</div></div>
-        <div class="card clickable c-accent" data-st="extrait"><div class="muted">Extraits, à contrôler</div><div class="big" style="color:var(--accent)">${n('extrait')}</div></div>
         <div class="card clickable c-doute" data-st="a_verifier"><div class="muted">À vérifier</div><div class="big" style="color:var(--doute)">${n('a_verifier')}</div></div>
-        <div class="card clickable c-absent" data-st="anomalie"><div class="muted">Anomalies</div><div class="big" style="color:var(--absent)">${n('anomalie')}</div></div>
-        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')} <span class="muted" style="font-size:14px;font-weight:500">/ ${L.length}</span></div><div class="small muted">${L.length - n('valide')} restant${L.length - n('valide') > 1 ? 's' : ''} à valider</div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
+        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')} <span class="muted" style="font-size:14px;font-weight:500">/ ${L.length}</span></div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
+        <div class="card clickable c-absent" data-st="anomalie"><div class="muted">Avec anomalies</div><div class="big" style="color:var(--absent)">${L.filter(b => b.anomalies && b.anomalies.length).length}</div></div>
+        <div class="card clickable c-accent" id="card-termes"><div class="muted">Termes dans les 12 mois</div><div class="big" style="color:var(--accent)">${APP.termes(L, 12).length}</div></div>
         <div class="card"><div class="muted">Loyer annuel HT cumulé</div><div class="big">${U.fmtMoney(L.reduce((s, b) => s + CALC.loyerAnnuel(b), 0), 0)} €</div></div>
       </div>
       ${L.some(b => b.statut !== 'valide') ? `<div class="row" style="margin-bottom:14px"><button id="go-next" class="primary">▶ Continuer la vérification (${L.filter(b => b.statut !== 'valide').length} restants)</button></div>` : ''}
@@ -100,6 +100,7 @@ const APP = {
       ${missingIdx.length ? `<div class="panel anoms"><b>${missingIdx.length} bail(s) avec un indice de base absent de la table</b> : ${missingIdx.slice(0, 10).map(b => `${U.esc(b.ref || b.preneur)} (${b.index.type} ${b.index.basePeriode})`).join(', ')}${missingIdx.length > 10 ? '…' : ''}. <a href="#" id="go-indices">Compléter les indices</a></div>` : ''}
       <div class="panel"><h2>Échéances des 6 prochains mois</h2>${ech.length ? '' : '<div class="empty">Aucune échéance dans les 6 mois.</div>'}${!ech.length ? '' : UI.table([{ key: 'date', label: 'Date', render: U.fmtDate }, { key: 'libelle', label: 'Échéance' }, { key: 'preavis', label: 'Préavis avant le', render: U.fmtDate }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }], ech).html}</div>`;
     UI.$$('.card[data-st]', v).forEach(c => c.onclick = () => { APP.filters.statut = c.dataset.st; APP.go('baux'); });
+    UI.$('#card-termes', v).onclick = () => APP.go('termes');
     const gn = UI.$('#go-next', v); if (gn) gn.onclick = () => { APP.filters.statut = ''; const nb = L.find(b => b.statut !== 'valide'); APP.go('baux'); if (nb) APP.select(nb.id); };
     const gi = UI.$('#go-indices', v); if (gi) gi.onclick = e => { e.preventDefault(); APP.go('indices'); };
     const drop = UI.$('#drop', v);
@@ -148,7 +149,7 @@ const APP = {
     if (!Array.isArray(b.lots) || !b.lots.length) b.lots = fresh.lots; if (!b.loyerAnnuelHT) b.loyerAnnuelHT = fresh.loyerAnnuelHT;
     if (b.yardi && !b.yardi.propertyCode && fresh.yardi.propertyCode) b.yardi.propertyCode = fresh.yardi.propertyCode;
     for (const [k, m] of Object.entries(fresh.fields)) if (!b.fields[k] || b.fields[k].conf !== 'manuel') b.fields[k] = { ...m, ...(b.fields[k] || {}), page: m.page, snippet: m.snippet, offset: m.offset };
-    b.anomalies = [...new Set([...(b.anomalies || []), ...fresh.anomalies])]; if (b.anomalies.length && b.statut !== 'valide') b.statut = 'anomalie';
+    b.anomalies = [...new Set([...(b.anomalies || []), ...fresh.anomalies])];
     Object.assign(b, { pdfId: fresh.pdfId, pdfName: file.name, pdfSize: file.size, pdfPages: pages.length, ocr, updated: new Date().toISOString() });
     (b.history ||= []).push({ date: new Date().toISOString(), champ: 'PDF', avant: null, apres: file.name });
     await DB.put('pdfs', { id: b.pdfId, name: file.name, data: ab, pages, ocr }); await DB.put('baux', b);
@@ -178,12 +179,13 @@ const APP = {
     for (const [k, m] of Object.entries(F)) if (k[0] !== '_') bail.fields[k] = { conf: m.conf, page: m.page, snippet: m.snippet, offset: m.offset, deduit: m.deduit, learned: m.learned, note: m.note, extracted: m.value };
     bail.lots = EXTRACT.lots(pages, bail.loyerAnnuelHT, bail.lotsTexte); bail.paliers = []; bail.avenants = [];
     if (!bail.surfaceTotale) { const st = bail.lots.reduce((s, l) => s + (+l.surface || 0), 0); if (st) bail.surfaceTotale = st; }
-    bail.anomalies = F._anomalies || []; bail.statut = bail.anomalies.length ? 'anomalie' : 'extrait';
+    bail.anomalies = F._anomalies || []; bail.statut = 'a_verifier';
     if (!bail.ref) bail.ref = (bail.preneur || file.name.replace(/\.pdf$/i, '')).slice(0, 40);
     return bail;
   },
   // Conversion des anciens enregistrements (lignes + surfaces + lots texte) vers le tableau des lots
   migrate(b) {
+    if (b.statut === 'extrait' || b.statut === 'anomalie' || !b.statut) b.statut = 'a_verifier';
     if (Array.isArray(b.lots)) return b;
     const texte = typeof b.lots === 'string' ? b.lots : ''; b.lotsTexte = b.lotsTexte || texte;
     const typeOf = u => /bureau/.test(u || '') ? 'bureau' : /parking|stationnement/.test(u || '') ? 'parking' : 'entrepot';
@@ -203,14 +205,66 @@ const APP = {
     g.style.gridTemplateColumns = `${L.list ? '280px ' : ''}minmax(320px, 1fr) ${formW}px`;
     UI.$('#blist').classList.toggle('hidden', !L.list); UI.$('#bform').classList.toggle('wide', !L.list || L.form === 'large');
   },
+  // ===== Termes à venir, asset managers =====
+  amOf(b) { const a = APP.actifs.find(x => x.nom === b.actif); return a && a.am ? (APP.ams || []).find(m => m.id === a.am) || null : null; },
+  // Baux dont la fin (effective) ou une faculté triennale tombe dans les N prochains mois, ou déjà échus sans reconduction
+  termes(L, mois = 12) {
+    const today = U.toISO(new Date()), horizon = U.addMonths(today, mois); const out = [];
+    for (const b of L) {
+      const fin = APP.finFamille(b); const rec = b.reconduction || 'aucune';
+      if (fin && rec === 'aucune' && fin < today) out.push({ b, type: 'Échu sans reconduction', date: fin });
+      else if (fin && rec !== 'indeterminee') { const e = CALC.echeances(b).find(x => x.fin); const d = e ? e.date : fin; if (d >= today && d <= horizon) out.push({ b, type: rec === 'annuelle' ? 'Fin de reconduction annuelle' : 'Fin du bail', date: d, preavis: e && e.preavis }); }
+      for (const e of CALC.echeances(b)) if (!e.fin && /triennale/.test(e.libelle) && e.date >= today && e.date <= horizon) out.push({ b, type: 'Faculté triennale', date: e.date, preavis: e.preavis });
+    }
+    return out.sort((x, y) => x.date.localeCompare(y.date));
+  },
+  vTermes(v) {
+    const L = APP.filtered(); const mois = APP.termesMois || 12; const amFilter = APP.termesAm || '';
+    let rows = APP.termes(L, mois).map(t => ({ ...t, id: t.b.id, ref: t.b.ref, preneur: t.b.preneur, actif: t.b.actif, am: (m => m ? `${m.prenom} ${m.nom}` : '')(APP.amOf(t.b)), amId: (m => m ? m.id : '')(APP.amOf(t.b)), loyer: CALC.loyerAnnuel(t.b), reconduction: t.b.reconduction || 'aucune', dateFin: APP.finFamille(t.b), statut: t.b.statut }));
+    if (amFilter) rows = rows.filter(r => r.amId === amFilter);
+    const ams = APP.ams || [];
+    v.innerHTML = `<div class="panel"><h2>Termes à venir</h2>
+      <div class="row"><label>Horizon <select id="t-mois">${[3, 6, 12, 18, 24].map(m => `<option value="${m}" ${m === mois ? 'selected' : ''}>${m} mois</option>`).join('')}</select></label>
+        <label>Asset manager <select id="t-am"><option value="">Tous</option>${ams.map(m => `<option value="${m.id}" ${m.id === amFilter ? 'selected' : ''}>${U.esc(m.prenom + ' ' + m.nom)}</option>`).join('')}</select></label>
+        <span style="flex:1"></span><button id="t-xlsx">Exporter (Excel)</button><button id="t-mail" class="primary" ${rows.length ? '' : 'disabled'}>✉ Préparer un mail</button></div>
+      <p class="hint">Fins de bail (date effective après reconduction annuelle), facultés de résiliation triennale et baux échus sans reconduction. Les filtres actif / locataire de la barre s'appliquent. Sélectionnez des lignes pour agir en masse.</p>
+      <div class="row" style="margin-top:6px"><label><input type="checkbox" id="t-all"> tout sélectionner</label><button id="t-reconduire" disabled>Reconduire d'un an (nouvelle date de fin + 12 mois)</button><button id="t-annuelle" disabled>Marquer « tacite reconduction annuelle »</button><button id="t-fin" disabled>Fixer une date de fin…</button><span id="t-count" class="muted small"></span></div></div>
+      <div class="panel">${rows.length ? `<table><thead><tr><th></th><th>Date</th><th>Échéance</th><th>Préavis avant le</th><th>Réf.</th><th>Preneur</th><th>Actif</th><th>Asset manager</th><th>Reconduction</th><th>Fin actuelle</th><th class="num">Loyer HT/an</th><th>Statut</th></tr></thead><tbody>${rows.map((r, i) => `<tr data-i="${i}"><td><input type="checkbox" data-sel="${r.id}"></td><td>${U.fmtDate(r.date)}</td><td>${U.esc(r.type)}</td><td>${U.fmtDate(r.preavis || '')}</td><td><a href="#" data-open="${r.id}">${U.esc(r.ref || '')}</a></td><td>${U.esc(r.preneur || '')}</td><td>${U.esc(r.actif || '')}</td><td>${U.esc(r.am)}</td><td>${U.esc({ aucune: 'aucune', annuelle: 'annuelle', indeterminee: 'indéterminée' }[r.reconduction])}</td><td>${U.fmtDate(r.dateFin)}</td><td class="num">${U.fmtMoney(r.loyer, 0)}</td><td>${UI.tag(r.statut)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty"><b>Aucun terme</b> dans l\'horizon choisi.</div>'}</div>`;
+    UI.$('#t-mois', v).onchange = e => { APP.termesMois = +e.target.value; APP.render(); }; UI.$('#t-am', v).onchange = e => { APP.termesAm = e.target.value; APP.render(); };
+    UI.$$('[data-open]', v).forEach(a => a.onclick = e => { e.preventDefault(); APP.filters.statut = ''; APP.go('baux'); APP.select(a.dataset.open); });
+    const selIds = () => [...new Set(UI.$$('[data-sel]:checked', v).map(c => c.dataset.sel))];
+    const refresh = () => { const n = selIds().length; ['#t-reconduire', '#t-annuelle', '#t-fin'].forEach(id => UI.$(id, v).disabled = !n); UI.$('#t-count', v).textContent = n ? `${n} bail(x) sélectionné(s)` : ''; };
+    v.onchange = e => { if (e.target.id === 't-all') UI.$$('[data-sel]', v).forEach(c => c.checked = e.target.checked); if (e.target.dataset.sel !== undefined || e.target.id === 't-all') refresh(); };
+    const applyAll = async (fn, msg) => { let n = 0; for (const id of selIds()) { const b = APP.baux.find(x => x.id === id); if (!b) continue; fn(b); (b.history ||= []).push({ date: new Date().toISOString(), champ: 'Terme', avant: '', apres: msg }); b.updated = new Date().toISOString(); await DB.put('baux', b); n++; } UI.toast(`${n} bail(x) : ${msg}`); APP.render(); };
+    UI.$('#t-reconduire', v).onclick = () => applyAll(b => { const fin = APP.finFamille(b) || b.dateFin; b.dateFin = U.addMonths(fin, 12); }, 'reconduit d\'un an');
+    UI.$('#t-annuelle', v).onclick = () => applyAll(b => { b.reconduction = 'annuelle'; }, 'tacite reconduction annuelle');
+    UI.$('#t-fin', v).onclick = async () => { const d = await UI.prompt('Nouvelle date de fin (JJ/MM/AAAA) :'); const iso = U.parseDate(d); if (!iso) { if (d) UI.toast('Date invalide'); return; } applyAll(b => { b.dateFin = iso; b.reconduction = 'aucune'; }, `fin fixée au ${U.fmtDate(iso)}`); };
+    UI.$('#t-xlsx', v).onclick = () => { const wb = XLSX.utils.book_new(); EXCEL.sheet(wb, 'Termes', rows.map(r => ({ 'Date': r.date, 'Échéance': r.type, 'Préavis avant le': r.preavis || '', 'Référence': r.ref, 'Preneur': r.preneur, 'Actif': r.actif, 'Asset manager': r.am, 'Reconduction': r.reconduction, 'Fin actuelle': r.dateFin, 'Loyer HT/an': r.loyer, 'Statut': UI.statutLabel[r.statut] }))); XLSX.writeFile(wb, `termes_${mois}_mois_${U.toISO(new Date())}.xlsx`); };
+    UI.$('#t-mail', v).onclick = () => APP.mailTermes(rows, amFilter);
+  },
+  // Compose un récapitulatif par asset manager, modifiable, puis ouvre la messagerie (mailto) ou copie le texte
+  mailTermes(rows, amFilter) {
+    const groups = new Map(); for (const r of rows) { const k = r.amId || ''; (groups.get(k) || groups.set(k, []).get(k)).push(r); }
+    const ams = APP.ams || []; const first = amFilter || [...groups.keys()][0] || '';
+    const build = (amId) => { const m = ams.find(x => x.id === amId); const list = groups.get(amId) || []; const lines = list.map(r => `- ${U.fmtDate(r.date)} · ${r.type} · ${r.preneur || ''} (${r.ref || ''}) · ${r.actif || ''}${r.preavis ? ` · préavis avant le ${U.fmtDate(r.preavis)}` : ''} · ${U.fmtMoney(r.loyer, 0)} € HT/an`); return { to: m ? m.email : '', subject: `Baux arrivant à terme – ${list.length} échéance(s)`, body: `Bonjour${m ? ' ' + m.prenom : ''},\n\nVoici les baux de votre périmètre arrivant à terme :\n\n${lines.join('\n')}\n\nMerci de me faire un retour sur la situation de chacun (renouvellement, départ, renégociation).\n\nCordialement` }; };
+    const close = UI.modal(`<h2>Préparer un mail</h2><div class="row"><label>Destinataire <select id="m-am">${[...groups.keys()].map(k => { const m = ams.find(x => x.id === k); return `<option value="${k}" ${k === first ? 'selected' : ''}>${m ? U.esc(m.prenom + ' ' + m.nom + ' <' + m.email + '>') : 'Sans asset manager'}</option>`; }).join('')}</select></label></div>
+      <div style="margin-top:8px"><input id="m-to" placeholder="À" style="width:100%"><input id="m-subject" placeholder="Objet" style="width:100%;margin-top:6px"><textarea id="m-body" class="wide" style="min-height:40vh;width:70vw;margin-top:6px"></textarea></div>
+      <p class="hint">Le mail s'ouvre dans votre messagerie ; aucune donnée ne transite par l'application. Modifiez librement le texte avant envoi.</p>
+      <div class="row" style="justify-content:flex-end;margin-top:8px"><button data-close>Fermer</button><button id="m-copy">Copier le texte</button><button id="m-open" class="primary">Ouvrir dans la messagerie</button></div>`, box => {
+      const fill = () => { const d = build(UI.$('#m-am', box).value); UI.$('#m-to', box).value = d.to; UI.$('#m-subject', box).value = d.subject; UI.$('#m-body', box).value = d.body; }; fill();
+      UI.$('#m-am', box).onchange = fill;
+      UI.$('#m-copy', box).onclick = async () => { try { await navigator.clipboard.writeText(`À : ${UI.$('#m-to', box).value}\nObjet : ${UI.$('#m-subject', box).value}\n\n${UI.$('#m-body', box).value}`); UI.toast('Texte copié'); } catch { UI.toast('Copie impossible : sélectionnez le texte manuellement'); } };
+      UI.$('#m-open', box).onclick = () => { const href = `mailto:${encodeURIComponent(UI.$('#m-to', box).value)}?subject=${encodeURIComponent(UI.$('#m-subject', box).value)}&body=${encodeURIComponent(UI.$('#m-body', box).value)}`; if (href.length > 1800) UI.toast('Message long : certains clients tronquent ; utilisez « Copier le texte » si besoin', 5000); window.location.href = href; };
+    });
+  },
   // ===== Vue Baux (3 panneaux) =====
   vBaux(v) {
-    let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut);
+    let L = APP.filtered(); if (APP.filters.statut === 'anomalie') L = L.filter(b => b.anomalies && b.anomalies.length); else if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut);
     const actifs = [...new Set([...APP.actifs.map(a => a.nom), ...APP.baux.map(b => b.actif)].filter(Boolean))];
     v.innerHTML = `<div class="baux">
-      <div id="blist"><div class="toolbar row"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['extrait', 'a_verifier', 'anomalie', 'valide'], APP.filters.statut, UI.statutLabel)}</select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
+      <div id="blist"><div class="toolbar row"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['a_verifier', 'valide'], APP.filters.statut, UI.statutLabel)}<option value="anomalie" ${APP.filters.statut === 'anomalie' ? 'selected' : ''}>Avec anomalies</option></select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
         <div class="list-progress">${APP.filtered().filter(b => b.statut === 'valide').length} / ${APP.filtered().length} validés<div class="progress ok"><div style="width:${APP.filtered().length ? Math.round(APP.filtered().filter(b => b.statut === 'valide').length / APP.filtered().length * 100) : 0}%"></div></div></div>
-        ${L.flatMap(b => [b, ...APP.avenantsDe(b)]).map(b => `<div class="list-item ${APP.sel && APP.sel.id === b.id ? 'sel' : ''} ${APP.isAvenant(b) ? 'avenant' : ''}" data-id="${b.id}" title="${U.esc(b.pdfName || '')}"><div class="t"><span class="dot ${b.statut}"></span><span style="overflow:hidden;text-overflow:ellipsis">${APP.isAvenant(b) ? '↳ Avenant ' : ''}${U.esc(APP.isAvenant(b) ? (b.ref || U.fmtDate(b.dateEffet) || '') : (b.preneur || b.ref || '—'))}</span>${APP.etatOf(b) === 'sorti' && !APP.isAvenant(b) ? '<span class="tag sorti">sorti</span>' : ''}</div><div class="s"><span>${U.esc(APP.isAvenant(b) ? ('effet ' + U.fmtDate(b.dateEffet)) : ((b.ref || '') + (b.actif ? ' · ' + b.actif : '')))}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span></div></div>`).join('') || '<div class="empty"><b>Aucun bail</b><br>Importez des PDF depuis le tableau de bord.</div>'}
+        ${L.flatMap(b => [b, ...APP.avenantsDe(b)]).map(b => `<div class="list-item ${APP.sel && APP.sel.id === b.id ? 'sel' : ''} ${APP.isAvenant(b) ? 'avenant' : ''}" data-id="${b.id}" title="${U.esc(b.pdfName || '')}"><div class="t"><span class="dot ${b.statut}" title="${UI.statutLabel[b.statut] || ''}"></span>${b.anomalies && b.anomalies.length ? '<span class="dot anomalie" title="Anomalies détectées"></span>' : ''}<span style="overflow:hidden;text-overflow:ellipsis">${APP.isAvenant(b) ? '↳ Avenant ' : ''}${U.esc(APP.isAvenant(b) ? (b.ref || U.fmtDate(b.dateEffet) || '') : (b.preneur || b.ref || '—'))}</span>${APP.etatOf(b) === 'sorti' && !APP.isAvenant(b) ? '<span class="tag sorti">sorti</span>' : ''}</div><div class="s"><span>${U.esc(APP.isAvenant(b) ? ('effet ' + U.fmtDate(b.dateEffet)) : ((b.ref || '') + (b.actif ? ' · ' + b.actif : '')))}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span></div></div>`).join('') || '<div class="empty"><b>Aucun bail</b><br>Importez des PDF depuis le tableau de bord.</div>'}
       </div>
       <div id="viewer" class="viewer"><div class="toolbar"><span id="pv-info" class="muted toolbar-title">Sélectionnez un bail</span><span style="flex:1"></span><button id="pv-zoomout" title="Zoom -">−</button><button id="pv-zoomin" title="Zoom +">+</button><input id="pv-find" type="search" placeholder="Chercher dans le texte" style="width:180px"><button id="pv-text" title="Afficher le texte brut">Texte</button></div><div id="pv-pages"></div></div>
       <div id="bform" class="form"><datalist id="dl-actifs">${actifs.map(a => `<option value="${U.esc(a)}">`).join('')}</datalist><div class="empty"><b>Sélectionnez un bail</b><br><br><span class="small">Raccourcis : <kbd>Ctrl</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd> bail suivant/précédent, <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> valider, <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer. Entrer dans un champ affiche le passage source dans le PDF.</span></div></div></div>`;
@@ -222,7 +276,7 @@ const APP = {
     APP.applyLayout();
     if (APP.sel) { const s = L.find(b => b.id === APP.sel.id); if (s) APP.select(s.id); }
   },
-  selectOffset(d) { let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut); L = L.flatMap(b => [b, ...APP.avenantsDe(b)]); const i = L.findIndex(b => APP.sel && b.id === APP.sel.id); const n = L[i + d]; if (n) APP.select(n.id); },
+  selectOffset(d) { let L = APP.filtered(); if (APP.filters.statut === 'anomalie') L = L.filter(b => b.anomalies && b.anomalies.length); else if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut); L = L.flatMap(b => [b, ...APP.avenantsDe(b)]); const i = L.findIndex(b => APP.sel && b.id === APP.sel.id); const n = L[i + d]; if (n) APP.select(n.id); },
   async select(id) {
     if (APP.sel && APP.dirty) await APP.saveSel(false);
     APP.sel = U.clone(APP.baux.find(b => b.id === id)); APP.dirty = false;
@@ -362,7 +416,7 @@ const APP = {
   vQuittance(v) {
     const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '', loyersSeuls: true, depot: true };
     v.innerHTML = `<div class="panel"><h2>Quittancement</h2><div class="row"><label>Du <input type="date" id="q-from" value="${q.from}"></label><label>au <input type="date" id="q-to" value="${q.to}"></label>
-      <select id="q-statut"><option value="">Tous les baux filtrés</option>${UI.opts(['valide', 'a_verifier', 'extrait', 'anomalie'], q.statut, UI.statutLabel)}</select>
+      <select id="q-statut"><option value="">Tous les baux filtrés</option>${UI.opts(['valide', 'a_verifier'], q.statut, UI.statutLabel)}</select>
       <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes)</label>
       <label><input type="checkbox" id="q-depot" ${q.depot !== false ? 'checked' : ''}> dépôt de garantie (versement initial et réajustements à chaque indexation)</label>
       <button id="q-run" class="primary">Calculer</button><button id="q-export" ${APP.quittance ? '' : 'disabled'}>Exporter (Excel)</button><button id="q-csv" ${APP.quittance ? '' : 'disabled'} title="Un fichier CSV avec le détail du calcul (jours, indices, coefficients), limité au locataire sélectionné dans la barre s'il y en a un">CSV de contrôle${APP.filters.preneur ? ' (locataire)' : ''}</button><span class="muted small">Les filtres actif / locataire de la barre s'appliquent.</span></div>
@@ -447,8 +501,12 @@ const APP = {
         <p class="hint">Onglet Baux : colonnes essentielles d'abord, puis « (non essentiel) ». Onglet Lots : une ligne par lot. À l'import, la colonne Référence identifie le bail ; les cellules renseignées remplacent les valeurs de l'application (marquées « saisi »), les cellules vides sont ignorées. Une référence inconnue crée un bail sans PDF.</p></div>
       <div class="panel"><h2>Actifs (immeubles)</h2>
         <p class="hint">Liste proposée à la saisie et utilisée pour reconnaître l'actif dans les baux (nom ou mots-clés trouvés dans le texte) et renseigner le n° d'actif Yardi.</p>
-        <table id="p-actifs"><thead><tr><th>Nom</th><th>N° actif Yardi</th><th>Mots-clés de reconnaissance (séparés par ;)</th><th></th></tr></thead><tbody>${APP.actifs.map((a, i) => `<tr><td><input data-actif="${i}" data-k="nom" value="${U.esc(a.nom || '')}" style="width:260px"></td><td><input data-actif="${i}" data-k="code" value="${U.esc(a.code || '')}" style="width:110px"></td><td><input data-actif="${i}" data-k="motsCles" value="${U.esc(a.motsCles || '')}" style="width:100%"></td><td><button class="danger ghost" data-actifdel="${i}">×</button></td></tr>`).join('')}</tbody></table>
+        <table id="p-actifs"><thead><tr><th>Nom</th><th>N° actif Yardi</th><th>Asset manager</th><th>Mots-clés de reconnaissance (séparés par ;)</th><th></th></tr></thead><tbody>${APP.actifs.map((a, i) => `<tr><td><input data-actif="${i}" data-k="nom" value="${U.esc(a.nom || '')}" style="width:240px"></td><td><input data-actif="${i}" data-k="code" value="${U.esc(a.code || '')}" style="width:100px"></td><td><select data-actif="${i}" data-k="am"><option value="">—</option>${(APP.ams || []).map(m => `<option value="${m.id}" ${a.am === m.id ? 'selected' : ''}>${U.esc(m.prenom + ' ' + m.nom)}</option>`).join('')}</select></td><td><input data-actif="${i}" data-k="motsCles" value="${U.esc(a.motsCles || '')}" style="width:100%"></td><td><button class="danger ghost" data-actifdel="${i}">×</button></td></tr>`).join('')}</tbody></table>
         <div class="row" style="margin-top:8px"><button id="p-actif-add">+ Ajouter un actif</button><button id="p-actif-fromdata">Reprendre les actifs des baux existants</button></div></div>
+      <div class="panel"><h2>Asset managers</h2>
+        <p class="hint">Affectés aux actifs ci-dessus ; utilisés par la vue « Termes à venir » pour filtrer et préparer les mails de suivi.</p>
+        <table><thead><tr><th>Prénom</th><th>Nom</th><th>Email</th><th>Actifs suivis</th><th></th></tr></thead><tbody>${(APP.ams || []).map((m, i) => `<tr><td><input data-am="${i}" data-k="prenom" value="${U.esc(m.prenom || '')}" style="width:140px"></td><td><input data-am="${i}" data-k="nom" value="${U.esc(m.nom || '')}" style="width:160px"></td><td><input data-am="${i}" data-k="email" type="email" value="${U.esc(m.email || '')}" style="width:260px"></td><td class="muted small">${U.esc(APP.actifs.filter(a => a.am === m.id).map(a => a.nom).join(', '))}</td><td><button class="danger ghost" data-amdel="${i}">×</button></td></tr>`).join('')}</tbody></table>
+        <div class="row" style="margin-top:8px"><button id="p-am-add">+ Ajouter un asset manager</button></div></div>
       <div class="panel"><h2>Export Excel de la base</h2>
         <div class="row"><button id="p-xlsx" class="primary">Exporter toute la base (.xlsx)</button><button id="p-xlsx-sel">Exporter la sélection courante</button><span class="muted small">La sélection suit les filtres de la barre : actif, locataire, en cours / sortis, recherche. Onglets : Baux (avec avenants), Lots, Paliers, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
       <div class="panel"><h2>Sécurité</h2><div class="row"><button id="p-pass">Changer le mot de passe maître</button><label>Verrouillage auto après <input type="number" id="p-delay" value="${SESSION.delayMin}" min="0" style="width:60px"> min (0 = jamais)</label></div></div>
@@ -468,6 +526,9 @@ const APP = {
     const saveActifs = async () => { APP.actifs = APP.actifs.filter(a => a.nom || a.code || a.motsCles); await DB.setSetting('actifs', APP.actifs); };
     UI.$$('[data-actif]', v).forEach(i => i.onchange = async () => { APP.actifs[+i.dataset.actif][i.dataset.k] = i.value.trim(); await DB.setSetting('actifs', APP.actifs); });
     UI.$$('[data-actifdel]', v).forEach(b => b.onclick = async () => { APP.actifs.splice(+b.dataset.actifdel, 1); await saveActifs(); APP.render(); });
+    UI.$$('[data-am]', v).forEach(i => i.onchange = async () => { APP.ams[+i.dataset.am][i.dataset.k] = i.value.trim(); await DB.setSetting('ams', APP.ams); });
+    UI.$$('[data-amdel]', v).forEach(b => b.onclick = async () => { const id = APP.ams[+b.dataset.amdel].id; APP.ams.splice(+b.dataset.amdel, 1); APP.actifs.forEach(a => { if (a.am === id) a.am = ''; }); await DB.setSetting('ams', APP.ams); await DB.setSetting('actifs', APP.actifs); APP.render(); });
+    UI.$('#p-am-add', v).onclick = async () => { APP.ams.push({ id: U.uid(), prenom: '', nom: '', email: '' }); await DB.setSetting('ams', APP.ams); APP.render(); setTimeout(() => { const last = UI.$$('[data-am][data-k="prenom"]').pop(); if (last) last.focus(); }, 50); };
     UI.$('#p-actif-add', v).onclick = async () => { APP.actifs.push({ nom: '', code: '', motsCles: '' }); await DB.setSetting('actifs', APP.actifs); APP.render(); setTimeout(() => { const last = UI.$$('[data-actif][data-k="nom"]').pop(); if (last) last.focus(); }, 50); };
     UI.$('#p-actif-fromdata', v).onclick = async () => { let n = 0; for (const b of APP.baux) { if (b.actif && !APP.actifs.some(a => a.nom === b.actif)) { APP.actifs.push({ nom: b.actif, code: b.yardi && b.yardi.propertyCode || '', motsCles: '' }); n++; } } await saveActifs(); UI.toast(`${n} actif(s) ajouté(s)`); APP.render(); };
     UI.$('#p-pass', v).onclick = async () => { const o = await UI.prompt('Mot de passe actuel :', { type: 'password' }); if (!o) return; const n = await UI.prompt('Nouveau mot de passe (8 caractères minimum) :', { type: 'password' }); if (!n || n.length < 8) return; const n2 = await UI.prompt('Confirmer le nouveau mot de passe :', { type: 'password' }); if (n !== n2) { UI.toast('Les saisies diffèrent'); return; } UI.toast('Ré-encodage en cours…'); if (await SESSION.changePassword(o, n)) UI.toast('Mot de passe changé'); else UI.toast('Mot de passe actuel incorrect'); };
