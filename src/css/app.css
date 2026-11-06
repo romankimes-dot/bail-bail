@@ -82,6 +82,8 @@ tr.sel td { background:var(--sel); }
 .list-item { padding:8px 12px; border-bottom:1px solid var(--line); cursor:pointer; border-left:3px solid transparent; }
 .list-item:hover { background:var(--panel2); }
 .list-item.sel { background:var(--sel); border-left-color:var(--accent); }
+.list-item.avenant { padding-left:26px; background:var(--panel2); } .list-item.avenant.sel { background:var(--sel); }
+.tag.sorti { color:var(--muted); background:var(--panel2); border-color:var(--line2); margin-left:auto; font-weight:500; }
 .list-item .t { font-weight:600; display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .list-item .s { color:var(--muted); font-size:12px; display:flex; justify-content:space-between; gap:8px; margin-top:2px; }
 .list-item .s span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

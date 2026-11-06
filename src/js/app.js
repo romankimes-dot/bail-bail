@@ -22,10 +22,15 @@ const APP = {
       UI.$('#pass1').value = ''; UI.$('#pass2').value = '';
       await APP.start();
     };
-    document.addEventListener('keydown', e => { if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.preventDefault(); if (!SESSION.locked) SESSION.lock(); } SESSION.touch(); });
+    document.addEventListener('keydown', e => { if (e.ctrlKey && e.key.toLowerCase() === 'l') { e.preventDefault(); if (!SESSION.locked) SESSION.lock(); } if (!SESSION.locked) SESSION.touch(); });
     ['mousemove', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (!SESSION.locked) SESSION.touch(); }, { passive: true }));
   },
-  onLock() { UI.$('#app').classList.add('hidden'); UI.$('#lock').classList.remove('hidden'); UI.$('#lock-step-folder').classList.add('hidden'); UI.$('#lock-step-pass').classList.remove('hidden'); UI.$('#lock-pass-msg').textContent = 'Session verrouillée. Entrez le mot de passe.'; UI.$('#pass2').classList.add('hidden'); APP.baux = []; APP.doc = null; APP.sel = null; UI.$('#view').innerHTML = ''; setTimeout(() => UI.$('#pass1').focus(), 50); },
+  onLock() {
+    UI.$('#app').classList.add('hidden'); UI.$('#lock').classList.remove('hidden'); UI.$('#lock-step-folder').classList.add('hidden'); UI.$('#lock-step-pass').classList.remove('hidden'); UI.$('#lock-pass-msg').textContent = 'Session verrouillée. Entrez le mot de passe.'; UI.$('#pass2').classList.add('hidden');
+    if (APP.doc) { try { APP.doc.destroy(); } catch { } }
+    Object.assign(APP, { baux: [], doc: null, docId: null, pdfRec: null, pages: null, pageEls: null, sel: null, dirty: false, quittance: null, rapp: null, yardiRows: [], learned: {}, actifs: [], lastImport: null });
+    UI.closeModal(); UI.$('#modal-box').innerHTML = ''; UI.$('#view').innerHTML = ''; setTimeout(() => UI.$('#pass1').focus(), 50);
+  },
   async start() {
     UI.$('#lock').classList.add('hidden'); UI.$('#app').classList.remove('hidden');
     const added = await INDICES.seedMissing();
@@ -38,6 +43,7 @@ const APP = {
     UI.$('#btn-lock').onclick = () => SESSION.lock();
     UI.$('#f-actif').onchange = e => { APP.filters.actif = e.target.value; APP.render(); };
     UI.$('#f-preneur').onchange = e => { APP.filters.preneur = e.target.value; APP.render(); };
+    UI.$('#f-etat').onchange = e => { APP.filters.etat = e.target.value; APP.render(); };
     UI.$('#f-search').oninput = U.debounce(e => { APP.filters.q = e.target.value; APP.render(); }, 200);
     if (!APP._keysBound) { document.addEventListener('keydown', APP.keys); APP._keysBound = true; }
     APP.go(APP.baux.length ? 'baux' : 'dashboard');
@@ -57,9 +63,14 @@ const APP = {
     const fa = UI.$('#f-actif'), fp = UI.$('#f-preneur');
     fa.innerHTML = '<option value="">Tous les actifs</option>' + UI.opts(actifs, APP.filters.actif); fp.innerHTML = '<option value="">Tous les locataires</option>' + UI.opts(pren, APP.filters.preneur);
   },
-  filtered() {
+  isAvenant(b) { return !!b.parentId; },
+  avenantsDe(b) { return APP.baux.filter(a => a.parentId === b.id).sort((x, y) => (x.dateEffet || '').localeCompare(y.dateEffet || '')); },
+  // Bail en cours / sorti : selon la date de fin la plus tardive de la famille (bail + avenants)
+  finFamille(b) { return [b.dateFin, ...APP.avenantsDe(b).map(a => a.dateFin)].filter(Boolean).sort().pop() || ''; },
+  etatOf(b) { const fin = APP.finFamille(b); const today = U.toISO(new Date()); return fin && fin < today ? 'sorti' : 'en_cours'; },
+  filtered(opts = {}) {
     const q = U.norm(APP.filters.q);
-    return APP.baux.filter(b => (!APP.filters.actif || b.actif === APP.filters.actif) && (!APP.filters.preneur || b.preneur === APP.filters.preneur) && (!q || U.norm([b.ref, b.preneur, b.enseigne, b.actif, b.lotsTexte, ...(Array.isArray(b.lots) ? b.lots.map(l => l.lot) : []), b.bailleur, b.pdfName, b.commentaires, b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.join(' ')].join(' ')).includes(q)))
+    return APP.baux.filter(b => (opts.avecAvenants || !APP.isAvenant(b)) && (!APP.filters.etat || APP.etatOf(APP.isAvenant(b) ? (APP.baux.find(p => p.id === b.parentId) || b) : b) === APP.filters.etat) && (!APP.filters.actif || b.actif === APP.filters.actif) && (!APP.filters.preneur || b.preneur === APP.filters.preneur) && (!q || U.norm([b.ref, b.preneur, b.enseigne, b.actif, b.lotsTexte, ...(Array.isArray(b.lots) ? b.lots.map(l => l.lot) : []), b.bailleur, b.pdfName, b.commentaires, b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.join(' ')].join(' ')).includes(q)))
       .sort((a, b) => (a.actif || '').localeCompare(b.actif || '') || (a.preneur || '').localeCompare(b.preneur || ''));
   },
   render() { APP.refreshFilterLists(); const v = UI.$('#view'); v.innerHTML = ''; ({ dashboard: APP.vDashboard, baux: APP.vBaux, indices: APP.vIndices, quittance: APP.vQuittance, yardi: APP.vYardi, params: APP.vParams })[APP.view](v); },
@@ -117,7 +128,7 @@ const APP = {
         let ocr = false;
         const emptyPages = pages.filter(p => p.text.replace(/\s/g, '').length < 80);
         if (emptyPages.length > pages.length / 2) { ocr = true; ocrN++; pages = await OCR.ocrDocument(doc, (i, n) => upd(`OCR page ${i}/${n}`)); }
-        else if (emptyPages.length) { ocr = true; ocrN++; const worker = await OCR.get(); const canvas = document.createElement('canvas'); for (const p of emptyPages) { upd(`OCR page ${p.num}`); await PDF.render(doc, p.num, canvas, 2); const r = await worker.recognize(canvas); p.text = r.data.text; p.ocr = true; } }
+        else if (emptyPages.length) { ocr = true; ocrN++; const worker = await OCR.get(); const canvas = document.createElement('canvas'); for (const p of emptyPages) { upd(`OCR page ${p.num}`); await PDF.render(doc, p.num, canvas, 2); const r = await worker.recognize(canvas); p.text = r.data.text.normalize('NFC'); p.ocr = true; } }
         upd('extraction'); const bail = APP.buildBail(f, ab, pages, ocr);
         await DB.put('pdfs', { id: bail.pdfId, name: f.name, data: ab, pages, ocr });
         await DB.put('baux', bail); APP.baux.push(bail); doc.destroy();
@@ -172,7 +183,7 @@ const APP = {
     v.innerHTML = `<div class="baux">
       <div id="blist"><div class="toolbar row"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['extrait', 'a_verifier', 'anomalie', 'valide'], APP.filters.statut, UI.statutLabel)}</select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
         <div class="list-progress">${APP.filtered().filter(b => b.statut === 'valide').length} / ${APP.filtered().length} validés<div class="progress ok"><div style="width:${APP.filtered().length ? Math.round(APP.filtered().filter(b => b.statut === 'valide').length / APP.filtered().length * 100) : 0}%"></div></div></div>
-        ${L.map(b => `<div class="list-item ${APP.sel && APP.sel.id === b.id ? 'sel' : ''}" data-id="${b.id}" title="${U.esc(b.pdfName || '')}"><div class="t"><span class="dot ${b.statut}"></span><span style="overflow:hidden;text-overflow:ellipsis">${U.esc(b.preneur || b.ref || '—')}</span></div><div class="s"><span>${U.esc(b.ref || '')}${b.actif ? ' · ' + U.esc(b.actif) : ''}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span></div></div>`).join('') || '<div class="empty"><b>Aucun bail</b><br>Importez des PDF depuis le tableau de bord.</div>'}
+        ${L.flatMap(b => [b, ...APP.avenantsDe(b)]).map(b => `<div class="list-item ${APP.sel && APP.sel.id === b.id ? 'sel' : ''} ${APP.isAvenant(b) ? 'avenant' : ''}" data-id="${b.id}" title="${U.esc(b.pdfName || '')}"><div class="t"><span class="dot ${b.statut}"></span><span style="overflow:hidden;text-overflow:ellipsis">${APP.isAvenant(b) ? '↳ Avenant ' : ''}${U.esc(APP.isAvenant(b) ? (b.ref || U.fmtDate(b.dateEffet) || '') : (b.preneur || b.ref || '—'))}</span>${APP.etatOf(b) === 'sorti' && !APP.isAvenant(b) ? '<span class="tag sorti">sorti</span>' : ''}</div><div class="s"><span>${U.esc(APP.isAvenant(b) ? ('effet ' + U.fmtDate(b.dateEffet)) : ((b.ref || '') + (b.actif ? ' · ' + b.actif : '')))}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span></div></div>`).join('') || '<div class="empty"><b>Aucun bail</b><br>Importez des PDF depuis le tableau de bord.</div>'}
       </div>
       <div id="viewer" class="viewer"><div class="toolbar"><span id="pv-info" class="muted toolbar-title">Sélectionnez un bail</span><span style="flex:1"></span><button id="pv-zoomout" title="Zoom -">−</button><button id="pv-zoomin" title="Zoom +">+</button><input id="pv-find" type="search" placeholder="Chercher dans le texte" style="width:180px"><button id="pv-text" title="Afficher le texte brut">Texte</button></div><div id="pv-pages"></div></div>
       <div id="bform" class="form"><datalist id="dl-actifs">${actifs.map(a => `<option value="${U.esc(a)}">`).join('')}</datalist><div class="empty"><b>Sélectionnez un bail</b><br><br><span class="small">Raccourcis : <kbd>Ctrl</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd> bail suivant/précédent, <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> valider, <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer. Entrer dans un champ affiche le passage source dans le PDF.</span></div></div></div>`;
@@ -184,7 +195,7 @@ const APP = {
     APP.applyLayout();
     if (APP.sel) { const s = L.find(b => b.id === APP.sel.id); if (s) APP.select(s.id); }
   },
-  selectOffset(d) { let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut); const i = L.findIndex(b => APP.sel && b.id === APP.sel.id); const n = L[i + d]; if (n) APP.select(n.id); },
+  selectOffset(d) { let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut); L = L.flatMap(b => [b, ...APP.avenantsDe(b)]); const i = L.findIndex(b => APP.sel && b.id === APP.sel.id); const n = L[i + d]; if (n) APP.select(n.id); },
   async select(id) {
     if (APP.sel && APP.dirty) await APP.saveSel(false);
     APP.sel = U.clone(APP.baux.find(b => b.id === id)); APP.dirty = false;
@@ -196,8 +207,10 @@ const APP = {
     b.yardi = b.yardi || { tenantCodes: [], unitCodes: [] }; b.yardi.tenantCodesText = (b.yardi.tenantCodes || []).join(', '); b.yardi.unitCodesText = (b.yardi.unitCodes || []).join(', ');
     b.lots = Array.isArray(b.lots) ? b.lots : []; b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT || null;
     const lists = {}; const ess = APP.mode === 'essentiel';
-    let html = `<div class="actions"><button id="b-list" title="Afficher / masquer la liste">☰</button><button id="b-width" title="Largeur du formulaire : normale / large">${APP.layout.form === 'large' ? '⇤ Réduire' : '⇔ Élargir'}</button><button id="b-mode" title="Afficher seulement les champs utiles au quittancement, ou tout">${ess ? 'Essentiel ▸ Complet' : 'Complet ▸ Essentiel'}</button><span style="flex:1"></span><button id="b-save" class="primary ${APP.dirty ? 'unsaved' : ''}" title="Ctrl+S">Enregistrer</button><button id="b-validate" title="Valider et passer au suivant (Ctrl+Entrée)">✓ Valider</button><button id="b-next" title="Bail suivant à vérifier">Suivant ▸</button><button id="b-reextract" class="ghost" title="Relancer l'extraction (règles + ancres apprises)">↻</button>${ess ? '' : '<button id="b-dup" title="Créer un avenant / bail lié">Avenant</button><button id="b-del" class="danger ghost">Supprimer</button>'}</div>
+    let html = `<div class="actions"><button id="b-list" title="Afficher / masquer la liste">☰</button><button id="b-width" title="Largeur du formulaire : normale / large">${APP.layout.form === 'large' ? '⇤ Réduire' : '⇔ Élargir'}</button><button id="b-mode" title="Afficher seulement les champs utiles au quittancement, ou tout">${ess ? 'Essentiel ▸ Complet' : 'Complet ▸ Essentiel'}</button><span style="flex:1"></span><button id="b-save" class="primary ${APP.dirty ? 'unsaved' : ''}" title="Ctrl+S">Enregistrer</button><button id="b-validate" title="Valider et passer au suivant (Ctrl+Entrée)">✓ Valider</button><button id="b-next" title="Bail suivant à vérifier">Suivant ▸</button><button id="b-reextract" class="ghost" title="Relancer l'extraction (règles + ancres apprises)">↻</button>${APP.isAvenant(b) ? '' : '<button id="b-dup" title="Créer un avenant lié à ce bail">+ Avenant</button>'}${ess ? '' : '<button id="b-del" class="danger ghost">Supprimer</button>'}</div>
       <div class="legend"><span><span class="dot valide"></span>confiant</span><span><span class="dot a_verifier"></span>douteux</span><span><span class="dot anomalie"></span>non trouvé</span><span><span class="dot extrait"></span>saisi</span><span class="muted2">· œil = voir dans le PDF</span></div>`;
+    if (APP.isAvenant(b)) { const par = APP.baux.find(x => x.id === b.parentId); html += `<div class="meta">Avenant du bail <a href="#" data-goto="${b.parentId}">${U.esc(par ? (par.ref || par.preneur) : '?')}</a>, effet le <b>${U.fmtDate(b.dateEffet) || '?'}</b>. Seuls les champs renseignés ici remplacent ceux du bail ; le quittancement du bail applique cet avenant à partir de sa date d'effet.</div>`; }
+    else { const avs = APP.avenantsDe(b); if (avs.length) html += `<div class="meta">${avs.length} avenant(s) : ${avs.map(a => `<a href="#" data-goto="${a.id}">${U.esc(a.ref || U.fmtDate(a.dateEffet))}</a>`).join(', ')}</div>`; }
     if (b.anomalies && b.anomalies.length) html += `<div class="anoms"><b>Anomalies détectées</b><ul style="margin:4px 0 0 16px;padding:0">${b.anomalies.map(a => `<li>${U.esc(a)}</li>`).join('')}</ul></div>`;
     const lx = CALC.loyerIndexeAt(b, U.toISO(new Date()));
     html += `<div class="meta">${UI.tag(b.statut)} &nbsp;PDF : ${U.esc(b.pdfName || 'aucun')} (${b.pdfPages || 0} p.${b.ocr ? ', OCR' : ''})<br>Loyer indexé aujourd'hui : <b>${U.fmtMoney(lx.montant)} € HT/an</b> (coef ${lx.coef.toFixed(4)})${lx.missing.length ? ` · <span class="error">indice manquant : ${lx.missing.join(', ')}</span>` : ''}${lx.unverified.length ? ` · <span class="warn">indice non vérifié : ${lx.unverified.join(', ')}</span>` : ''}</div>`;
@@ -213,7 +226,7 @@ const APP = {
     el.innerHTML = html;
     el.oninput = e => { const t = e.target; if (t.dataset.field) APP.onField(t); else if (t.dataset.sub) APP.onSub(t); const sv = UI.$('#b-save'); if (sv) sv.classList.add('unsaved'); };
     el.onfocusin = e => { const t = e.target; if (t.dataset.field && b.fields && b.fields[t.dataset.field] && b.fields[t.dataset.field].page) APP.showSource(t.dataset.field, true); };
-    el.onclick = e => { const t = e.target.closest('button'); if (!t) return; if (t.dataset.src) APP.showSource(t.dataset.src); else if (t.dataset.subadd) { (b[t.dataset.subadd] ||= []).push(UI.SUB[t.dataset.subadd].blank()); if (t.dataset.subadd === 'lots') APP.redistribute(b, b.loyerAnnuelHT); APP.dirty = true; APP.renderForm(); } else if (t.dataset.subdel) { b[t.dataset.subdel].splice(+t.dataset.i, 1); if (t.dataset.subdel === 'lots') APP.redistribute(b, b.loyerAnnuelHT); APP.dirty = true; APP.renderForm(); } };
+    el.onclick = e => { const g = e.target.closest('[data-goto]'); if (g) { e.preventDefault(); APP.select(g.dataset.goto); return; } const t = e.target.closest('button'); if (!t) return; if (t.dataset.src) APP.showSource(t.dataset.src); else if (t.dataset.subadd) { (b[t.dataset.subadd] ||= []).push(UI.SUB[t.dataset.subadd].blank()); if (t.dataset.subadd === 'lots') APP.redistribute(b, b.loyerAnnuelHT); APP.dirty = true; APP.renderForm(); } else if (t.dataset.subdel) { b[t.dataset.subdel].splice(+t.dataset.i, 1); if (t.dataset.subdel === 'lots') APP.redistribute(b, b.loyerAnnuelHT); APP.dirty = true; APP.renderForm(); } };
     UI.$('#b-save', el).onclick = () => APP.saveSel(true); UI.$('#b-validate', el).onclick = () => APP.validate(); UI.$('#b-reextract', el).onclick = () => APP.reextract();
     UI.$('#b-next', el).onclick = () => { let L = APP.filtered(); const i = L.findIndex(x => x.id === b.id); const nx = L.slice(i + 1).find(x => x.statut !== 'valide') || L.slice(0, i).find(x => x.statut !== 'valide'); if (nx) APP.select(nx.id); else UI.toast('Tous les baux filtrés sont validés'); };
     const bd = UI.$('#b-del', el); if (bd) bd.onclick = () => APP.deleteSel(); const bp = UI.$('#b-dup', el); if (bp) bp.onclick = () => APP.newBail(b);
@@ -257,15 +270,16 @@ const APP = {
   async validate() { if (!APP.sel) return; APP.sel.statut = 'valide'; await APP.saveSel(false); UI.toast('Bail validé'); APP.selectOffset(1); },
   async deleteSel() { const b = APP.sel; if (!b || !(await UI.confirm(`Supprimer le bail « ${U.esc(b.preneur || b.ref)} » et son PDF ?`, { ok: 'Supprimer', danger: true }))) return; await DB.del('baux', b.id); if (b.pdfId) await DB.del('pdfs', b.pdfId); APP.baux = APP.baux.filter(x => x.id !== b.id); APP.sel = null; APP.dirty = false; APP.render(); },
   async newBail(from) {
-    const b = { id: U.uid(), ref: from ? `${from.ref} – avenant` : '', statut: 'a_verifier', created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [], lots: [], paliers: [], avenants: [], anomalies: [], index: {}, depot: {}, charges: {}, tva: { option: true, taux: 20 }, yardi: { tenantCodes: [], unitCodes: [], propertyCode: '' }, prorata: 'jours' };
-    if (from) { for (const k of ['type', 'bailleur', 'preneur', 'enseigne', 'siren', 'actif', 'adresse', 'batiment', 'lotsTexte', 'surfaceTotale', 'periodicite', 'terme', 'prorata']) b[k] = from[k]; b.parentId = from.id; b.index = U.clone(from.index || {}); b.lots = U.clone(from.lots || []); b.yardi = U.clone(from.yardi || b.yardi); b.fields = {}; }
+    const b = { id: U.uid(), ref: from ? `${from.ref} – avenant ${APP.avenantsDe(from).length + 1}` : '', type: from ? 'avenant' : null, statut: 'a_verifier', created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [], lots: [], paliers: [], avenants: [], anomalies: [], index: {}, depot: {}, charges: {}, tva: { option: true, taux: 20 }, yardi: { tenantCodes: [], unitCodes: [], propertyCode: '' }, prorata: 'jours' };
+    if (from) { b.parentId = from.id; b.preneur = from.preneur; b.actif = from.actif; b.fields = {}; b.index = {}; b.lots = []; b.yardi = U.clone(from.yardi || b.yardi); }
     await DB.put('baux', b); APP.baux.push(b); APP.sel = null; APP.render(); APP.select(b.id);
   },
   async reextract() {
     const b = APP.sel; if (!b || !APP.pages) return;
     const fresh = APP.buildBail({ name: b.pdfName, size: b.pdfSize }, null, APP.pages, b.ocr);
-    const keep = ['id', 'ref', 'pdfId', 'pdfName', 'pdfSize', 'pdfPages', 'ocr', 'created', 'history', 'commentaires', 'yardi', 'avenants', 'paliers', 'statut'];
+    const keep = ['id', 'ref', 'pdfId', 'pdfName', 'pdfSize', 'pdfPages', 'ocr', 'created', 'history', 'commentaires', 'yardi', 'avenants', 'paliers', 'statut', 'lots', 'parentId', 'surfaceTotale'];
     for (const k of Object.keys(fresh)) if (!keep.includes(k)) b[k] = fresh[k];
+    if (!b.lots || !b.lots.length) b.lots = fresh.lots;
     // conserve les valeurs saisies à la main
     for (const [k, m] of Object.entries(b.fields)) if (m.conf === 'manuel') { const f = UI.FORM.find(x => x.key === k); if (f) { UI.setPath(b, f.path || f.key, UI.getPath(APP.baux.find(x => x.id === b.id), f.path || f.key)); fresh.fields[k] = m; } }
     b.fields = { ...fresh.fields, ...Object.fromEntries(Object.entries(b.fields).filter(([k, m]) => m.conf === 'manuel')) };
@@ -301,7 +315,7 @@ const APP = {
   showText() { if (!APP.pages) return; UI.modal(`<h2>Texte extrait</h2><textarea class="wide" style="min-height:70vh;width:80vw" readonly>${U.esc(APP.pages.map(p => `===== Page ${p.num}${p.ocr ? ' (OCR)' : ''} =====\n${p.text}`).join('\n\n'))}</textarea><div class="row" style="justify-content:flex-end;margin-top:8px"><button data-close>Fermer</button></div>`); },
   // ===== Indices =====
   vIndices(v) {
-    const rows = INDICES.cache || []; const types = Object.keys(INDICES.TYPES); const years = [...new Set(rows.map(r => +r.periode.slice(0, 4)))].sort((a, b) => b - a); const y0 = new Date().getFullYear(); for (let y = y0 + 1; y >= y0 - 1; y--) if (!years.includes(y)) years.push(y); years.sort((a, b) => b - a);
+    const rows = INDICES.cache || []; const types = Object.keys(INDICES.TYPES); const years = [...new Set([...rows.map(r => +r.periode.slice(0, 4)), ...(APP.extraYears || [])])].sort((a, b) => b - a); const y0 = new Date().getFullYear(); for (let y = y0 + 1; y >= y0 - 1; y--) if (!years.includes(y)) years.push(y); years.sort((a, b) => b - a);
     const unv = rows.filter(r => !r.verifie).length;
     v.innerHTML = `<div class="panel"><h2>Tables d'indices</h2>
       <div class="row"><button id="idx-csv">Importer un CSV…</button><input type="file" id="idx-file" accept=".csv,.txt" class="hidden"><button id="idx-verify-all">Marquer tout comme vérifié</button><button id="idx-export">Exporter (Excel)</button><button id="idx-template">Modèle CSV d'import</button><span class="muted small">CSV attendu : <code>type;periode;valeur</code> (ex. <code>ILAT;2025T2;136,34</code>). ${unv ? `<span class="warn">${unv} valeur(s) pré-remplies non vérifiées.</span>` : '<span class="ok">Toutes les valeurs sont vérifiées.</span>'}</span></div>
@@ -314,7 +328,7 @@ const APP = {
     UI.$('#idx-verify-all', v).onclick = async () => { if (!(await UI.confirm('Marquer toutes les valeurs comme vérifiées ?'))) return; for (const r of rows) if (!r.verifie) await DB.put('indices', { ...r, verifie: true }); await INDICES.load(); APP.render(); };
     UI.$('#idx-template', v).onclick = () => U.download('modele_import_indices.csv', '\ufeff' + INDICES.template(), 'text/csv;charset=utf-8');
     UI.$('#idx-export', v).onclick = () => { const wb = XLSX.utils.book_new(); EXCEL.sheet(wb, 'Indices', rows.map(i => ({ Indice: i.type, Période: i.periode, Valeur: i.valeur, Vérifié: i.verifie ? 'oui' : 'non', Source: i.source }))); XLSX.writeFile(wb, 'indices.xlsx'); };
-    UI.$('#idx-addyear', v).onclick = async () => { const y = Math.min(...years) - 1; await INDICES.set('ILC', `${y}T1`, 0, false, 'à saisir'); await INDICES.remove('ILC', `${y}T1`); years.push(y); APP.render(); };
+    UI.$('#idx-addyear', v).onclick = () => { (APP.extraYears ||= []).push(Math.min(...years) - 1); APP.render(); };
   },
   // ===== Quittancement =====
   vQuittance(v) {
@@ -323,22 +337,23 @@ const APP = {
       <select id="q-statut"><option value="">Tous les baux filtrés</option>${UI.opts(['valide', 'a_verifier', 'extrait', 'anomalie'], q.statut, UI.statutLabel)}</select>
       <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes)</label>
       <label><input type="checkbox" id="q-depot" ${q.depot !== false ? 'checked' : ''}> dépôt de garantie (versement initial et réajustements à chaque indexation)</label>
-      <button id="q-run" class="primary">Calculer</button><button id="q-export" ${APP.quittance ? '' : 'disabled'}>Exporter (Excel)</button><span class="muted small">Les filtres actif / locataire de la barre s'appliquent.</span></div>
+      <button id="q-run" class="primary">Calculer</button><button id="q-export" ${APP.quittance ? '' : 'disabled'}>Exporter (Excel)</button><button id="q-csv" ${APP.quittance ? '' : 'disabled'} title="Un fichier CSV avec le détail du calcul (jours, indices, coefficients), limité au locataire sélectionné dans la barre s'il y en a un">CSV de contrôle${APP.filters.preneur ? ' (locataire)' : ''}</button><span class="muted small">Les filtres actif / locataire de la barre s'appliquent.</span></div>
       <div id="q-warn"></div></div><div id="q-out"></div>`;
     const run = () => {
       APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value, loyersSeuls: UI.$('#q-loyers').checked, depot: UI.$('#q-depot').checked };
       let L = APP.filtered(); if (APP.qParams.statut) L = L.filter(b => b.statut === APP.qParams.statut);
       const lignes = [], warns = [];
-      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls, depot: APP.qParams.depot }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
-      APP.quittance = lignes; UI.$('#q-export').disabled = !lignes.length;
+      for (const b of L) { const r = CALC.quittanceFamille(b, APP.baux, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls, depot: APP.qParams.depot }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
+      APP.quittance = lignes; UI.$('#q-export').disabled = !lignes.length; UI.$('#q-csv').disabled = !lignes.length;
       UI.$('#q-warn').innerHTML = warns.length ? `<details class="anoms" style="margin-top:8px"><summary style="cursor:pointer"><b>${[...new Set(warns)].length} avertissement(s)</b> <span class="muted small">(cliquer pour afficher)</span></summary><ul style="margin:6px 0 0 16px;padding:0;max-height:160px;overflow:auto">${[...new Set(warns)].map(w => `<li>${U.esc(w)}</li>`).join('')}</ul></details>` : '';
       const tot = lignes.reduce((a, l) => ({ ht: a.ht + l.ht, tva: a.tva + l.tva, ttc: a.ttc + l.ttc }), { ht: 0, tva: 0, ttc: 0 });
-      const cols = [{ key: 'ref', label: 'Réf.' }, { key: 'yardiProperty', label: 'Property (Yardi)' }, { key: 'yardiTenant', label: 'Tenant (Yardi)' }, { key: 'tenantCode', label: 'Tenant id' }, { key: 'propertyCode', label: 'N° actif' }, { key: 'lot', label: 'Lot' }, { key: 'du', label: 'Du', render: U.fmtDate }, { key: 'au', label: 'Au', render: U.fmtDate }, { key: 'libelle', label: 'Libellé' }, { key: 'chargeCode', label: 'Code' }, { key: 'coef', label: 'Coef.', num: true, dec: 4 }, { key: 'prorata', label: 'Prorata', num: true, dec: 4 }, { key: 'ht', label: 'HT', num: true }, { key: 'tva', label: 'TVA', num: true }, { key: 'ttc', label: 'TTC', num: true }];
+      const cols = [{ key: 'ref', label: 'Réf.' }, { key: 'note', label: 'Note', render: x => U.esc(x || '') }, { key: 'yardiProperty', label: 'Property (Yardi)' }, { key: 'yardiTenant', label: 'Tenant (Yardi)' }, { key: 'tenantCode', label: 'Tenant id' }, { key: 'propertyCode', label: 'N° actif' }, { key: 'lot', label: 'Lot' }, { key: 'du', label: 'Du', render: U.fmtDate }, { key: 'au', label: 'Au', render: U.fmtDate }, { key: 'libelle', label: 'Libellé' }, { key: 'chargeCode', label: 'Code' }, { key: 'coef', label: 'Coef.', num: true, dec: 4 }, { key: 'prorata', label: 'Prorata', num: true, dec: 4 }, { key: 'ht', label: 'HT', num: true }, { key: 'tva', label: 'TVA', num: true }, { key: 'ttc', label: 'TTC', num: true }];
       const t = UI.table(cols, lignes, { sortKey: APP.sort.q, sortDir: APP.sort.qd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
       UI.$('#q-out').innerHTML = `<div class="panel"><div class="row" style="justify-content:space-between"><b>${lignes.length} lignes</b><span>Total HT <b>${U.fmtMoney(tot.ht)}</b> · TVA ${U.fmtMoney(tot.tva)} · TTC <b>${U.fmtMoney(tot.ttc)}</b></span></div>${t.html}</div>`;
       t.bind(UI.$('#q-out')); UI.$$('#q-out th[data-sort]').forEach(th => th.onclick = () => { APP.sort.qd = APP.sort.q === th.dataset.sort ? -(APP.sort.qd || 1) : 1; APP.sort.q = th.dataset.sort; run(); });
     };
     UI.$('#q-run', v).onclick = run; UI.$('#q-export', v).onclick = () => EXCEL.exportQuittance(APP.quittance || []);
+    UI.$('#q-csv', v).onclick = () => { const L = APP.quittance || []; const nom = APP.filters.preneur ? U.norm(APP.filters.preneur).replace(/[^a-z0-9]+/g, '_') : 'tous'; EXCEL.csvQuittance(L, `calcul_quittancement_${nom}_${APP.qParams.from}_${APP.qParams.to}.csv`); };
     if (APP.quittance) run();
   },
   // ===== Yardi =====
@@ -359,7 +374,7 @@ const APP = {
     UI.$('#y-paste', v).onclick = () => UI.modal(`<h2>Coller l'export Yardi (copié depuis Excel)</h2><textarea id="y-txt" class="wide" style="width:70vw;min-height:40vh"></textarea><div class="row" style="justify-content:flex-end;margin-top:8px"><button data-close>Annuler</button><button id="y-ok" class="primary">Importer</button></div>`, b => { UI.$('#y-ok', b).onclick = async () => { try { const rows = YARDI.parseText(UI.$('#y-txt', b).value); UI.closeModal(); await APP.saveYardi(rows, 'collage'); } catch (ex) { UI.toast('Erreur : ' + ex.message, 5000); } }; });
     UI.$('#y-match', v).onclick = async () => { let n = 0; for (const b of APP.baux) { if (b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.length) continue; const s = YARDI.suggest(b, APP.yardiRows); if (s.length && s[0].score >= 0.8) { b.yardi = b.yardi || {}; b.yardi.tenantCodes = [s[0].code]; const rs = APP.yardiRows.filter(r => r.tenantCode === s[0].code); b.yardi.unitCodes = [...new Set(rs.map(r => r.unitCode).filter(Boolean))]; if (!b.yardi.propertyCode && rs[0]) b.yardi.propertyCode = rs[0].propertyCode || ''; if (Array.isArray(b.lots)) b.lots.forEach((l, i) => { if (!l.unitCode) l.unitCode = b.yardi.unitCodes[Math.min(i, b.yardi.unitCodes.length - 1)] || ''; }); await DB.put('baux', b); n++; } } UI.toast(`${n} bail(x) associé(s) par le nom du locataire ; vérifiez dans chaque fiche`); APP.render(); };
     const run = () => {
-      APP.yMode = UI.$('#y-mode').value; APP.yStatut = UI.$('#y-statut').value; APP.rapp = YARDI.reconcile(linked, APP.yardiRows, APP.yMode); UI.$('#y-export').disabled = !APP.rapp.length;
+      APP.yMode = UI.$('#y-mode').value; APP.yStatut = UI.$('#y-statut').value; APP.rapp = YARDI.reconcile(linked, APP.yardiRows, APP.yMode, APP.baux); UI.$('#y-export').disabled = !APP.rapp.length;
       let rows = APP.rapp; if (APP.yStatut) rows = rows.filter(r => r.statut === APP.yStatut);
       const cols = [{ key: 'statut', label: 'Statut', render: s => UI.tag(s) }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }, { key: 'tenantCodes', label: 'Codes Yardi' }, { key: 'chargeCode', label: 'Code charge' }, { key: 'mois', label: 'Période' }, { key: 'yardi', label: 'Yardi HT', num: true }, { key: 'calcul', label: 'Calcul HT', num: true }, { key: 'ecart', label: 'Écart', num: true, render: (x, r) => x === undefined ? '' : `<span class="${Math.abs(x) <= 1 ? 'ok' : 'error'}">${U.fmtNum(x)}</span>` }, { key: 'warnings', label: 'Avertissements', render: (x, r) => { const t = x || r.note || ''; if (!t) return ''; const items = t.split(' ; ').filter(Boolean); return `<span class="trunc" title="${U.esc(items.join('\n'))}">${items.length > 1 ? `<b>${items.length}</b> · ` : ''}${U.esc(items[0])}</span>`; } }];
       const t = UI.table(cols, rows, { sortKey: APP.sort.y, sortDir: APP.sort.yd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
@@ -385,7 +400,8 @@ const APP = {
         if (k === 'yardiTenant') b.yardi.tenantCodes = String(v).split(/[,\s;]+/).filter(Boolean);
       }
       if (rec.lots) { b.lots = rec.lots; champs++; }
-      if (rec.champs.loyerAnnuelHT !== undefined && Array.isArray(b.lots) && b.lots.length) APP.redistribute(b, rec.champs.loyerAnnuelHT); else b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT;
+      const lotsAvecMontant = Array.isArray(b.lots) && b.lots.some(l => l.montantAnnuelHT); const somme = CALC.loyerAnnuel(b);
+      if (rec.champs.loyerAnnuelHT !== undefined && Array.isArray(b.lots) && b.lots.length && (!rec.lots || !lotsAvecMontant || Math.abs(somme - rec.champs.loyerAnnuelHT) > 1)) APP.redistribute(b, rec.champs.loyerAnnuelHT); else b.loyerAnnuelHT = somme || b.loyerAnnuelHT;
       if (rec.statut) b.statut = rec.statut;
       b.updated = new Date().toISOString(); await DB.put('baux', b); if (created) { APP.baux.push(b); crees++; } else maj++;
     }
@@ -405,7 +421,8 @@ const APP = {
         <p class="hint">Liste proposée à la saisie et utilisée pour reconnaître l'actif dans les baux (nom ou mots-clés trouvés dans le texte) et renseigner le n° d'actif Yardi.</p>
         <table id="p-actifs"><thead><tr><th>Nom</th><th>N° actif Yardi</th><th>Mots-clés de reconnaissance (séparés par ;)</th><th></th></tr></thead><tbody>${APP.actifs.map((a, i) => `<tr><td><input data-actif="${i}" data-k="nom" value="${U.esc(a.nom || '')}" style="width:260px"></td><td><input data-actif="${i}" data-k="code" value="${U.esc(a.code || '')}" style="width:110px"></td><td><input data-actif="${i}" data-k="motsCles" value="${U.esc(a.motsCles || '')}" style="width:100%"></td><td><button class="danger ghost" data-actifdel="${i}">×</button></td></tr>`).join('')}</tbody></table>
         <div class="row" style="margin-top:8px"><button id="p-actif-add">+ Ajouter un actif</button><button id="p-actif-fromdata">Reprendre les actifs des baux existants</button></div></div>
-      <div class="panel"><h2>Export Excel de la base</h2><div class="row"><button id="p-xlsx" class="primary">Exporter la base complète (.xlsx)</button><span class="muted small">Onglets : Baux, Lots, Paliers, Avenants, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
+      <div class="panel"><h2>Export Excel de la base</h2>
+        <div class="row"><button id="p-xlsx" class="primary">Exporter toute la base (.xlsx)</button><button id="p-xlsx-sel">Exporter la sélection courante</button><span class="muted small">La sélection suit les filtres de la barre : actif, locataire, en cours / sortis, recherche. Onglets : Baux (avec avenants), Lots, Paliers, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
       <div class="panel"><h2>Sécurité</h2><div class="row"><button id="p-pass">Changer le mot de passe maître</button><label>Verrouillage auto après <input type="number" id="p-delay" value="${SESSION.delayMin}" min="0" style="width:60px"> min (0 = jamais)</label></div></div>
       <div class="panel"><h2>Codes de charge Yardi</h2><div class="row">${Object.keys(CALC.DEFAULT_CODES).map(k => `<label>${CALC.LABELS[k] || k} (${k}) <input data-code="${k}" value="${U.esc(codes[k] || '')}" style="width:90px"></label>`).join('')}</div></div>
       <div class="panel"><h2>Extraction</h2><div class="row"><button id="p-reextract">Ré-extraire tous les baux non validés</button><button id="p-forget">Oublier les ancres apprises</button><span class="muted small">${Object.values(APP.learned).reduce((n, a) => n + a.length, 0)} ancre(s) apprise(s) à partir de vos corrections.</span></div></div>
@@ -415,7 +432,8 @@ const APP = {
     UI.$('#p-exp-clear', v).onclick = async () => { if (!(await UI.confirm('Exporter toutes les données EN CLAIR ? Le fichier sera lisible par quiconque y accède.', { ok: 'Exporter en clair', danger: true }))) return; const data = await DB.exportAll(UI.$('#p-withpdf').checked); U.download(`sauvegarde_baux_${U.toISO(new Date())}.json`, JSON.stringify(data), 'application/json'); };
     UI.$('#p-imp', v).onclick = () => UI.$('#p-imp-file', v).click();
     UI.$('#p-imp-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const text = await U.readFile(f, 'text'); let pw = null; if (text.startsWith('{"format":"bail-bail-chiffre"')) pw = await UI.prompt('Mot de passe de la sauvegarde :', { type: 'password' }); const obj = await CRYPTO.unpackFile(text, pw || ''); const replace = UI.$('#p-replace').checked; if (replace && !(await UI.confirm('Remplacer toutes les données actuelles par la sauvegarde ?', { danger: true, ok: 'Remplacer' }))) return; await DB.importAll(obj, { replace }); APP.baux = (await DB.all('baux')).map(APP.migrate); await INDICES.load(); APP.learned = await DB.getSetting('learned', {}); UI.toast('Sauvegarde restaurée'); APP.render(); } catch (ex) { UI.toast('Échec : ' + (ex.message || 'mot de passe incorrect ?'), 5000); } };
-    UI.$('#p-xlsx', v).onclick = () => EXCEL.exportBase(APP.filtered(), INDICES.cache, APP.quittance, APP.rapp);
+    UI.$('#p-xlsx', v).onclick = () => EXCEL.exportBase(APP.baux, INDICES.cache, APP.quittance, APP.rapp, APP);
+    UI.$('#p-xlsx-sel', v).onclick = () => EXCEL.exportBase(APP.filtered({ avecAvenants: true }), INDICES.cache, APP.quittance, APP.rapp, APP);
     UI.$('#p-verif-exp', v).onclick = () => EXCEL.exportVerif(APP.filtered(), false); UI.$('#p-verif-vide', v).onclick = () => EXCEL.exportVerif([], true);
     UI.$('#p-verif-imp', v).onclick = () => UI.$('#p-verif-file', v).click();
     UI.$('#p-verif-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const recs = EXCEL.parseVerif(await U.readFile(f)); const r = await APP.importVerif(recs); UI.toast(`Classeur importé : ${r.maj} bail(x) mis à jour, ${r.crees} créé(s), ${r.champs} champ(s) modifié(s)`, 6000); APP.render(); } catch (ex) { UI.toast('Échec : ' + ex.message, 6000); } };
@@ -427,7 +445,7 @@ const APP = {
     UI.$('#p-pass', v).onclick = async () => { const o = await UI.prompt('Mot de passe actuel :', { type: 'password' }); if (!o) return; const n = await UI.prompt('Nouveau mot de passe (8 caractères minimum) :', { type: 'password' }); if (!n || n.length < 8) return; const n2 = await UI.prompt('Confirmer le nouveau mot de passe :', { type: 'password' }); if (n !== n2) { UI.toast('Les saisies diffèrent'); return; } UI.toast('Ré-encodage en cours…'); if (await SESSION.changePassword(o, n)) UI.toast('Mot de passe changé'); else UI.toast('Mot de passe actuel incorrect'); };
     UI.$('#p-delay', v).onchange = async e => { SESSION.delayMin = Math.max(0, +e.target.value || 0); await DB.setSetting('lockDelay', SESSION.delayMin); SESSION.touch(); };
     UI.$$('[data-code]', v).forEach(i => i.onchange = async () => { CALC.codes[i.dataset.code] = i.value.trim(); await DB.setSetting('codes', CALC.codes); });
-    UI.$('#p-reextract', v).onclick = async () => { const L = APP.baux.filter(b => b.statut !== 'valide' && b.pdfId); if (!L.length || !(await UI.confirm(`Ré-extraire ${L.length} bail(x) non validés avec les règles et les ancres apprises ? Les champs saisis à la main sont conservés.`))) return; let n = 0; for (const b of L) { const p = await DB.get('pdfs', b.pdfId); if (!p) continue; const fresh = APP.buildBail({ name: b.pdfName, size: b.pdfSize }, null, p.pages, b.ocr); const keep = ['id', 'ref', 'pdfId', 'pdfName', 'pdfSize', 'pdfPages', 'ocr', 'created', 'history', 'commentaires', 'yardi', 'avenants', 'paliers', 'statut']; const manual = Object.entries(b.fields || {}).filter(([k, m]) => m.conf === 'manuel'); for (const k of Object.keys(fresh)) if (!keep.includes(k)) b[k] = fresh[k]; for (const [k, m] of manual) { const f = UI.FORM.find(x => x.key === k); if (f) { UI.setPath(b, f.path || f.key, UI.getPath(APP.baux.find(x => x.id === b.id), f.path || f.key)); } b.fields[k] = m; } await DB.put('baux', b); n++; } UI.toast(`${n} bail(x) ré-extraits`); APP.render(); };
+    UI.$('#p-reextract', v).onclick = async () => { const L = APP.baux.filter(b => b.statut !== 'valide' && b.pdfId); if (!L.length || !(await UI.confirm(`Ré-extraire ${L.length} bail(x) non validés avec les règles et les ancres apprises ? Les champs saisis à la main sont conservés.`))) return; let n = 0; for (const b of L) { const p = await DB.get('pdfs', b.pdfId); if (!p) continue; const fresh = APP.buildBail({ name: b.pdfName, size: b.pdfSize }, null, p.pages, b.ocr); const keep = ['id', 'ref', 'pdfId', 'pdfName', 'pdfSize', 'pdfPages', 'ocr', 'created', 'history', 'commentaires', 'yardi', 'avenants', 'paliers', 'statut', 'lots', 'parentId', 'surfaceTotale']; const manual = Object.entries(b.fields || {}).filter(([k, m]) => m.conf === 'manuel'); for (const k of Object.keys(fresh)) if (!keep.includes(k)) b[k] = fresh[k]; for (const [k, m] of manual) { const f = UI.FORM.find(x => x.key === k); if (f) { UI.setPath(b, f.path || f.key, UI.getPath(APP.baux.find(x => x.id === b.id), f.path || f.key)); } b.fields[k] = m; } await DB.put('baux', b); n++; } UI.toast(`${n} bail(x) ré-extraits`); APP.render(); };
     UI.$('#p-forget', v).onclick = async () => { if (await UI.confirm('Oublier toutes les ancres apprises ?')) { APP.learned = {}; await DB.setSetting('learned', {}); APP.render(); } };
     UI.$('#p-wipe', v).onclick = async () => { if (!(await UI.confirm('Effacer TOUTES les données (baux, PDF, indices, Yardi) du dossier ? Irréversible.', { ok: 'Tout effacer', danger: true }))) return; const pw = await UI.prompt('Confirmez le mot de passe maître :', { type: 'password' }); if (!pw || !(await SESSION.unlock(pw))) { UI.toast('Mot de passe incorrect'); return; } await DB.wipeAll(); SESSION.lock(); location.reload(); };
   },

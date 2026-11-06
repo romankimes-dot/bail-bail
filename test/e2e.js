@@ -5,7 +5,7 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, locale: 'fr-FR', colorScheme: 'light' }); const p = await ctx.newPage();
   const errors = []; p.on('pageerror', e => errors.push(e.message)); p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log('[console]', m.text().slice(0, 200)); });
   await p.addInitScript({ path: path.join(__dirname, 'fake-fs.js') });
-  await p.goto('file://' + path.resolve(__dirname, '../dist/index.html'));
+  await p.goto('file://' + path.resolve(__dirname, '../dist/Bail-Bail.html'));
   await p.click('#btn-folder'); await p.waitForSelector('#lock-step-pass:not(.hidden)');
   await p.fill('#pass1', 'motdepasse123'); await p.fill('#pass2', 'motdepasse123'); await p.click('#form-pass button');
   await p.waitForSelector('#app:not(.hidden)'); console.log('ouvert');

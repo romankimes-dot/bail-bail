@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob:; style-src 'unsafe-inline'; img-src blob: data:; worker-src blob:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'unsafe-inline'; img-src blob: data:; worker-src blob:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Baux – quittancement</title>
@@ -44,6 +44,7 @@
     <div class="filters">
       <select id="f-actif" title="Filtrer par actif"><option value="">Tous les actifs</option></select>
       <select id="f-preneur" title="Filtrer par locataire"><option value="">Tous les locataires</option></select>
+      <select id="f-etat" title="Baux en cours ou sortis"><option value="">En cours et sortis</option><option value="en_cours">En cours</option><option value="sorti">Sortis</option></select>
       <input id="f-search" type="search" placeholder="Rechercher…">
       <button id="btn-lock" title="Verrouiller (Ctrl+L)">🔒</button>
     </div>

@@ -51,7 +51,9 @@ const INDICES = {
   async importCSV(text) {
     const lines = text.split(/\r?\n/).filter(l => l.trim()); let n = 0, errs = [];
     for (const line of lines) {
-      const cells = line.split(/[;\t,]/).map(c => c.trim().replace(/^"|"$/g, ''));
+      if (line.trim().startsWith('#')) continue;
+      const sep = line.includes(';') ? ';' : line.includes('\t') ? '\t' : ','; const cells = line.split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+      if (sep === ',' && cells.length === 4 && /^\d+$/.test(cells[2]) && /^\d{1,2}$/.test(cells[3])) { cells[2] = cells[2] + '.' + cells[3]; cells.length = 3; } // 'ILC,2025T1,136,04'
       if (cells.length < 3) continue;
       const type = cells[0].toUpperCase(); if (!INDICES.TYPES[type]) { if (n === 0 && errs.length === 0) continue; errs.push(line); continue; }
       const p = INDICES.normPeriode(cells[1]); const v = U.parseNum(cells[2]);

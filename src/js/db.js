@@ -76,9 +76,10 @@ const DB = {
   async importAll(obj, { replace = false } = {}) {
     if (!obj || obj.app !== 'bail-bail') throw new Error('Fichier de sauvegarde non reconnu');
     for (const s of DB.STORES) {
-      if (!obj[s]) continue; if (replace) await DB.clear(s);
+      if (!obj[s]) continue;
       let rows = obj[s]; if (s === 'pdfs') rows = rows.map(p => ({ ...p, data: p.data ? U.b64ToBytes(p.data).buffer : null }));
-      await DB.putMany(s, rows);
+      await DB.putMany(s, rows); // écrit d'abord, puis supprime les anciens enregistrements absents de la sauvegarde
+      if (replace) { const keep = new Set(rows.map(r => DB._fname(r.id))); for (const n of await DB._list(DB.dirs[s])) if (!keep.has(n)) await DB.dirs[s].removeEntry(n); }
     }
     DB.cache = {};
   },
@@ -94,17 +95,24 @@ const SESSION = {
   },
   async unlock(password) {
     const a = await DB.getMeta(); if (!a) return false;
-    const key = await CRYPTO.deriveKey(password, a.salt);
+    const key = await CRYPTO.deriveKey(password, a.salt, a.iter);
     if (!(await CRYPTO.checkVerifier({ iv: a.iv, ct: a.ct }, key))) return false;
     CRYPTO.key = key; SESSION.locked = false; SESSION.touch(); return true;
   },
+  // Changement de mot de passe : tout est ré-encodé dans donnees/_nouveau/ puis basculé store par store ; l'ancienne clé reste valide jusqu'à la bascule
   async changePassword(oldP, newP) {
     if (!(await SESSION.unlock(oldP))) return false;
-    const data = {}; for (const s of DB.STORES) data[s] = await DB.all(s);
-    const salt = CRYPTO.randomSalt(); const key = await CRYPTO.deriveKey(newP, salt); const v = await CRYPTO.makeVerifier(key);
-    CRYPTO.key = key;
-    for (const s of DB.STORES) { await DB.clear(s); await DB.putMany(s, data[s]); }
-    await DB.putMeta({ salt, iv: v.iv, ct: v.ct, iter: CRYPTO.ITER }); return true;
+    const oldKey = CRYPTO.key; const salt = CRYPTO.randomSalt(); const newKey = await CRYPTO.deriveKey(newP, salt); const v = await CRYPTO.makeVerifier(newKey);
+    const tmp = await DB.data.getDirectoryHandle('_nouveau', { create: true });
+    try {
+      for (const s of DB.STORES) {
+        const dir = await tmp.getDirectoryHandle(s, { create: true }); const names = (await DB._list(DB.dirs[s])).filter(n => n.endsWith('.bbx'));
+        for (const n of names) { CRYPTO.key = oldKey; const obj = await DB._unseal(DB._idOf(n), await DB._read(DB.dirs[s], n)); CRYPTO.key = newKey; await DB._write(dir, n, await DB._seal(obj)); }
+      }
+      for (const s of DB.STORES) { const dir = await tmp.getDirectoryHandle(s); for (const n of await DB._list(DB.dirs[s])) await DB.dirs[s].removeEntry(n); for (const n of await DB._list(dir)) await DB._write(DB.dirs[s], n, await DB._read(dir, n)); }
+      await DB.putMeta({ salt, iv: v.iv, ct: v.ct, iter: CRYPTO.ITER }); CRYPTO.key = newKey; DB.cache = {};
+      try { await DB.data.removeEntry('_nouveau', { recursive: true }); } catch { } return true;
+    } catch (e) { CRYPTO.key = oldKey; DB.cache = {}; try { await DB.data.removeEntry('_nouveau', { recursive: true }); } catch { } throw e; }
   },
   lock() { CRYPTO.key = null; SESSION.locked = true; DB.cache = {}; clearTimeout(SESSION.timer); if (window.APP) APP.onLock(); },
   touch() { clearTimeout(SESSION.timer); if (SESSION.delayMin > 0) SESSION.timer = setTimeout(() => SESSION.lock(), SESSION.delayMin * 60000); },

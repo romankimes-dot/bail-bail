@@ -30,5 +30,5 @@ html = put(html, '<!--ASSETS-->', `<script>\n${assetsJs}\n</script>`);
 html = put(html, '<!--APP-->', `<script>\n${safe(appJs)}\n</script>`);
 html = put(html, '<!--BUILD-->', new Date().toISOString().slice(0, 10));
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
-fs.writeFileSync(path.join(root, 'dist/index.html'), html);
-console.log('dist/index.html écrit :', (html.length / 1048576).toFixed(1), 'Mo');
+fs.writeFileSync(path.join(root, 'dist/Bail-Bail.html'), html);
+console.log('dist/Bail-Bail.html écrit :', (html.length / 1048576).toFixed(1), 'Mo');

@@ -18,9 +18,10 @@ const EXCEL = {
       'Anomalies': (b.anomalies || []).join(' ; '), 'Commentaires': b.commentaires, 'Fichier PDF': b.pdfName, 'OCR': b.ocr ? 'oui' : 'non', 'Mis à jour': b.updated,
     };
   },
-  async exportBase(baux, indices, quittance, rapprochement) {
+  async exportBase(baux, indices, quittance, rapprochement, app) {
     const wb = XLSX.utils.book_new();
-    EXCEL.sheet(wb, 'Baux', baux.map(EXCEL.flatBail));
+    const rows = baux.map(b => { const o = EXCEL.flatBail(b); if (app) { o['Avenant de'] = b.parentId ? ((app.baux.find(p => p.id === b.parentId) || {}).ref || '') : ''; o['État'] = b.parentId ? '' : (app.etatOf(b) === 'sorti' ? 'sorti' : 'en cours'); } return o; });
+    EXCEL.sheet(wb, 'Baux', rows);
     const lots = baux.flatMap(b => (Array.isArray(b.lots) ? b.lots : []).map(l => ({ 'Référence': b.ref, 'Preneur': b.preneur, 'Actif': b.actif, 'N° lot': l.lot, 'Type': l.type, 'Surface m²': l.surface, 'Loyer annuel HT': l.montantAnnuelHT, 'Code lot Yardi': l.unitCode, 'Code charge': CALC.code(l.type) })));
     if (lots.length) EXCEL.sheet(wb, 'Lots', lots);
     const paliers = baux.flatMap(b => (b.paliers || []).map(p => ({ 'Référence': b.ref, 'Du': p.du, 'Au': p.au, 'Loyer annuel HT': p.montantAnnuelHT })));
@@ -32,11 +33,19 @@ const EXCEL = {
     if (rapprochement && rapprochement.length) EXCEL.sheet(wb, 'Rapprochement Yardi', rapprochement.map(EXCEL.flatR));
     XLSX.writeFile(wb, `baux_${U.toISO(new Date())}.xlsx`);
   },
+  // CSV (séparateur ; UTF-8 BOM) des tables de calcul, avec le détail de l'indexation et des jours
+  csvQuittance(lignes, name) {
+    const cols = ['Référence', 'Preneur', 'Tenant id', 'Actif', 'N° actif', 'N° lot', 'Code lot', 'Du', 'Au', 'Jours', 'Jours période', 'Libellé', 'Code charge', 'Base période HT', 'Détail indexation', 'Coef. indexation', 'Prorata', 'Franchise', 'HT', 'Taux TVA', 'TVA', 'TTC', 'Note'];
+    const row = l => [l.ref, l.preneur, l.tenantCode, l.actif, l.propertyCode, l.lot, l.unitCode, U.fmtDate(l.du), U.fmtDate(l.au), l.jours, l.joursPeriode, l.libelle, l.chargeCode, l.base !== undefined ? U.round2(l.base) : '', l.indexDetail || '', U.round2(l.coef * 10000) / 10000, U.round2(l.prorata * 10000) / 10000, l.franchise ? U.round2(l.franchise * 100) + ' %' : '', l.ht, l.tauxTva, l.tva, l.ttc, l.note || ''];
+    const esc = v => { const s = String(v ?? '').replace(/\r?\n/g, ' '); return typeof v === 'number' ? String(v).replace('.', ',') : /[;"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const txt = [cols, ...lignes.map(row)].map(r => r.map(esc).join(';')).join('\r\n');
+    U.download(name, '\ufeff' + txt, 'text/csv;charset=utf-8');
+  },
   flatQ(l) { return { 'Référence': l.ref, 'Preneur': l.preneur, 'Tenant id': l.tenantCode, 'Actif': l.actif, 'N° actif': l.propertyCode, 'Property (Yardi)': l.yardiProperty, 'Tenant (Yardi)': l.yardiTenant, 'N° lot': l.lot, 'Code lot': l.unitCode, 'Du': l.du, 'Au': l.au, 'Type': l.type, 'Code charge': l.chargeCode, 'Libellé': l.libelle, 'Base période HT': l.base !== undefined ? U.round2(l.base) : '', 'Coef. indexation': U.round2(l.coef * 10000) / 10000, 'Prorata': U.round2(l.prorata * 10000) / 10000, 'Franchise': l.franchise ? U.round2(l.franchise * 100) + ' %' : '', 'HT': l.ht, 'Taux TVA': l.tauxTva, 'TVA': l.tva, 'TTC': l.ttc, 'Note': l.note || '' }; },
   flatR(r) { return { 'Référence': r.ref, 'Preneur': r.preneur, 'Actif': r.actif, 'Codes Yardi': r.tenantCodes, 'Code charge': r.chargeCode, 'Période': r.mois, 'Yardi HT': r.yardi, 'Calcul HT': r.calcul, 'Écart': r.ecart, 'Statut': r.statut, 'Avertissements': r.warnings || r.note || '' }; },
   // ----- Classeur de vérification : colonnes essentielles d'abord, puis non essentielles (marquées) -----
   verifCols() { return UI.FORM.filter(f => !f.group && f.key !== 'statut').sort((a, b) => (b.ess ? 1 : 0) - (a.ess ? 1 : 0)).map(f => ({ ...f, col: f.ess ? f.label : `${f.label} (non essentiel)` })); },
-  verifValue(f, b) { const v = UI.getPath(b, f.path || f.key); if (v === null || v === undefined) return ''; if (f.type === 'bool') return v ? 'oui' : 'non'; if (f.type === 'enum' && f.labels) return f.labels[v] || v; return v; },
+  verifValue(f, b) { if (f.key === 'yardiTenant') return (b.yardi && b.yardi.tenantCodes || []).join(', '); const v = UI.getPath(b, f.path || f.key); if (v === null || v === undefined) return ''; if (f.type === 'bool') return v ? 'oui' : 'non'; if (f.type === 'enum' && f.labels) return f.labels[v] || v; return v; },
   exportVerif(baux, vide) {
     const wb = XLSX.utils.book_new(); const cols = EXCEL.verifCols();
     const rows = (vide ? [{}] : baux).map(b => { const o = { 'Référence': b.ref || '', 'Statut': UI.statutLabel[b.statut] || b.statut || '' }; for (const f of cols) if (f.key !== 'ref') o[f.col] = EXCEL.verifValue(f, b); o['Commentaire vérificateur'] = ''; return o; });
@@ -59,24 +68,27 @@ const EXCEL = {
     const norm = h => U.norm(h).replace(/\s*\(non essentiel\)\s*$/, '').trim();
     const byLabel = new Map(cols.map(f => [norm(f.label), f]));
     const wsB = wb.Sheets['Baux'] || wb.Sheets[wb.SheetNames[0]]; if (!wsB) throw new Error('Onglet Baux introuvable');
-    const rowsB = XLSX.utils.sheet_to_json(wsB, { header: 1, raw: false, dateNF: 'dd/mm/yyyy' }); const head = (rowsB[0] || []).map(h => norm(h)); const out = [];
+    const rowsB = XLSX.utils.sheet_to_json(wsB, { header: 1, raw: true }); const head = (rowsB[0] || []).map(h => norm(String(h || ''))); const out = [];
     const iRef = head.indexOf('reference'), iSt = head.indexOf('statut'); if (iRef < 0) throw new Error('Colonne Référence introuvable dans l\'onglet Baux');
     const stMap = Object.fromEntries(Object.entries(UI.statutLabel).map(([k, v]) => [U.norm(v), k]));
     for (const r of rowsB.slice(1)) {
       const ref = String(r[iRef] || '').trim(); if (!ref) continue; const rec = { ref, champs: {}, lots: null };
       if (iSt >= 0 && r[iSt]) rec.statut = stMap[U.norm(r[iSt])] || null;
-      head.forEach((h, i) => { const f = byLabel.get(h); if (!f || f.key === 'ref' || r[i] === undefined || r[i] === '') return; rec.champs[f.key] = EXCEL.parseCell(f, String(r[i])); });
+      head.forEach((h, i) => { const f = byLabel.get(h); if (!f || f.key === 'ref' || r[i] === undefined || r[i] === null || r[i] === '') return; rec.champs[f.key] = EXCEL.parseCell(f, r[i]); });
       out.push(rec);
     }
     const wsL = wb.Sheets['Lots'];
-    if (wsL) { const rowsL = XLSX.utils.sheet_to_json(wsL, { raw: false }); for (const l of rowsL) { const ref = String(l['Référence'] || '').trim(); const rec = out.find(x => x.ref === ref); if (!rec) continue; (rec.lots ||= []).push({ lot: String(l['N° lot'] || ''), type: U.norm(l['Type'] || 'bureau').replace('entrepôt', 'entrepot') || 'bureau', surface: U.parseNum(l['Surface m²']), montantAnnuelHT: U.parseNum(l['Loyer annuel HT']), unitCode: String(l['Code lot Yardi'] || '') }); } }
+    if (wsL) { const rowsL = XLSX.utils.sheet_to_json(wsL, { raw: true }); for (const l of rowsL) { const ref = String(l['Référence'] || '').trim(); const rec = out.find(x => x.ref === ref); if (!rec) continue; (rec.lots ||= []).push({ lot: String(l['N° lot'] ?? ''), type: U.norm(l['Type'] || 'bureau') || 'bureau', surface: U.parseNum(l['Surface m²']), montantAnnuelHT: U.parseNum(l['Loyer annuel HT']), unitCode: String(l['Code lot Yardi'] ?? '') }); } }
     return out;
   },
   parseCell(f, v) {
-    v = v.trim();
+    if (typeof v === 'number') { if (f.type === 'num') return v; if (f.type === 'int') return Math.round(v); if (f.type === 'date') { const d = XLSX.SSF.parse_date_code(v); return d ? U.validDate(d.y, d.m, d.d) : null; } v = String(v); }
+    if (v instanceof Date) return f.type === 'date' ? U.parseDate(v) : U.toISO(v);
+    v = String(v).trim();
     if (f.type === 'num') return U.parseNum(v); if (f.type === 'int') return U.parseInt(v) ?? (U.parseNum(v) !== null ? Math.round(U.parseNum(v)) : null);
     if (f.type === 'date') return U.parseDate(v); if (f.type === 'bool') return /^(oui|o|yes|y|1|true|x)$/i.test(v) ? true : /^(non|n|no|0|false)$/i.test(v) ? false : null;
     if (f.type === 'enum') { const n = U.norm(v); const hit = (f.opts || []).find(o => U.norm(o) === n || (f.labels && U.norm(f.labels[o]) === n)); return hit || null; }
+    if (f.type === 'trim') return INDICES.normPeriode(v) || v;
     return v;
   },
   // Modèle d'export Yardi attendu pour l'import

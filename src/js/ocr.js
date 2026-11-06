@@ -22,7 +22,7 @@ const OCR = {
     for (let i = 1; i <= doc.numPages; i++) {
       await PDF.render(doc, i, canvas, 2);
       const r = await worker.recognize(canvas);
-      const vp = (await doc.getPage(i)).getViewport({ scale: 1 }); pages.push({ num: i, text: r.data.text, width: vp.width, height: vp.height, items: [], ocr: true });
+      const vp = (await doc.getPage(i)).getViewport({ scale: 1 }); pages.push({ num: i, text: r.data.text.normalize('NFC'), width: vp.width, height: vp.height, items: [], ocr: true });
       if (onProgress) onProgress(i, doc.numPages);
     }
     return pages;

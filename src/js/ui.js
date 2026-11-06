@@ -22,7 +22,7 @@ const UI = {
   // Définition du formulaire bail : clé, libellé, type, chemin dans l'objet
   FORM: [
     { group: 'Identification' },
-    { key: 'ref', ess: true, label: 'Référence', type: 'text' }, { key: 'type', label: 'Type de bail', type: 'enum', opts: ['commercial', 'derogatoire', 'precaire', 'professionnel', 'civil', 'autre'], labels: { commercial: 'Commercial 3/6/9', derogatoire: 'Dérogatoire', precaire: 'Précaire', professionnel: 'Professionnel', civil: 'Civil', autre: 'Autre' } },
+    { key: 'ref', ess: true, label: 'Référence', type: 'text' }, { key: 'type', ess: true, label: 'Type de bail', type: 'enum', opts: ['commercial', 'derogatoire', 'precaire', 'professionnel', 'civil', 'avenant', 'autre'], labels: { commercial: 'Commercial 3/6/9', derogatoire: 'Dérogatoire', precaire: 'Précaire', professionnel: 'Professionnel', civil: 'Civil', avenant: 'Avenant', autre: 'Autre' } },
     { key: 'statut', ess: true, label: 'Statut', type: 'enum', opts: ['extrait', 'a_verifier', 'valide', 'anomalie'], labels: STATUT_LABEL },
     { key: 'bailleur', label: 'Bailleur', type: 'text' }, { key: 'gestionnaire', label: 'Gestionnaire', type: 'text' },
     { key: 'preneur', ess: true, label: 'Preneur', type: 'text' }, { key: 'enseigne', label: 'Enseigne', type: 'text' }, { key: 'siren', label: 'SIREN preneur', type: 'text' }, { key: 'emailFacturation', label: 'Email facturation', type: 'text' },
@@ -39,13 +39,13 @@ const UI = {
     { key: 'prorata', label: 'Prorata', type: 'enum', opts: ['jours', '30/360'], labels: { jours: 'Jours réels', '30/360': '30/360' } }, { key: 'franchiseMois', ess: true, label: 'Franchise (mois)', type: 'int' }, { key: 'franchiseDebut', ess: true, label: 'Début franchise', type: 'date', hint: 'vide = date d\'effet' },
     { key: 'tvaOption', label: 'Option TVA', type: 'bool', path: 'tva.option' }, { key: 'tvaTaux', label: 'Taux TVA (%)', type: 'num', path: 'tva.taux' },
     { group: 'Indexation' },
-    { key: 'indexType', ess: true, label: 'Indice', type: 'enum', opts: ['ILAT', 'ILC', 'ICC', 'IRL', 'aucun'], path: 'index.type' }, { key: 'indexBasePeriode', ess: true, label: 'Indice de base (trim.)', type: 'text', path: 'index.basePeriode', hint: 'ex. 2026T1' },
+    { key: 'indexType', ess: true, label: 'Indice', type: 'enum', opts: ['ILAT', 'ILC', 'ICC', 'aucun'], path: 'index.type' }, { key: 'indexBasePeriode', ess: true, label: 'Indice de base (trim.)', type: 'trim', path: 'index.basePeriode', hint: 'ex. 2026T1' },
     { key: 'indexBaseValeur', ess: true, label: 'Indice de base (valeur)', type: 'num', path: 'index.baseValeur' }, { key: 'indexPremiereDate', ess: true, label: 'Première indexation', type: 'date', path: 'index.premiereDate' },
-    { key: 'indexRevisionPeriode', ess: true, label: 'Indice de révision (trim.)', type: 'text', path: 'index.revisionPeriode', hint: 'vide = même trimestre, année suivante' }, { key: 'indexPlafond', label: 'Plafond (%)', type: 'num', path: 'index.plafond' }, { key: 'indexPlancher', label: 'Pas de baisse', type: 'bool', path: 'index.plancher' }, { key: 'indexCondition', label: 'Condition', type: 'text', path: 'index.condition' },
+    { key: 'indexRevisionPeriode', ess: true, label: 'Indice de révision (trim.)', type: 'trim', path: 'index.revisionPeriode', hint: 'vide = même trimestre, année suivante' }, { key: 'indexPlafond', label: 'Plafond (%)', type: 'num', path: 'index.plafond' }, { key: 'indexPlancher', label: 'Pas de baisse', type: 'bool', path: 'index.plancher' }, { key: 'indexCondition', label: 'Condition', type: 'text', path: 'index.condition' },
     { group: 'Dépôt de garantie' },
     { key: 'depotMontant', ess: true, label: 'Montant (€)', type: 'num', path: 'depot.montant' }, { key: 'depotMois', label: 'Mois de loyer', type: 'int', path: 'depot.mois' }, { key: 'depotReajust', label: 'Réajusté chaque année', type: 'bool', path: 'depot.reajustement' },
     { group: 'Charges et taxes' },
-    { key: 'chargesMode', label: 'Mode', type: 'enum', opts: ['forfait', 'provision'], path: 'charges.mode' }, { key: 'chargesMontant', label: 'Montant annuel HT (€)', type: 'num', path: 'charges.montantAnnuelHT' }, { key: 'chargesPeriodicite', label: 'Périodicité', type: 'enum', opts: ['mensuel', 'trimestriel', 'semestriel', 'annuel'], path: 'charges.periodicite' },
+    { key: 'chargesMode', label: 'Mode', type: 'enum', opts: ['forfait', 'provision'], path: 'charges.mode' }, { key: 'chargesMontant', label: 'Montant annuel HT (€)', type: 'num', path: 'charges.montantAnnuelHT' }, { key: 'chargesPeriodicite', label: 'Charges : périodicité', type: 'enum', opts: ['mensuel', 'trimestriel', 'semestriel', 'annuel'], path: 'charges.periodicite' },
     { key: 'taxeFonciere', label: 'Taxe foncière refacturée', type: 'bool', path: 'charges.taxeFonciere' }, { key: 'taxeFonciereMontant', label: 'Taxe foncière annuelle (€)', type: 'num', path: 'charges.taxeFonciereMontant' }, { key: 'teom', label: 'TEOM refacturée', type: 'bool', path: 'charges.teom' }, { key: 'honorairesInclus', label: 'Honoraires gestion inclus', type: 'bool', path: 'charges.honorairesInclus' },
     { group: 'Yardi' },
     { key: 'yardiTenant', ess: true, label: 'Tenant id Yardi (t…)', type: 'text', path: 'yardi.tenantCodesText', hint: 'ex. t0000859 ; plusieurs : virgules' }, { key: 'yardiProperty', ess: true, label: 'N° actif Yardi', type: 'text', path: 'yardi.propertyCode', hint: 'ex. fr101901' },
@@ -66,12 +66,13 @@ const UI = {
     else if (f.type === 'num') input = `<input type="text" inputmode="decimal" ${common} value="${v == null ? '' : U.fmtNum(v, 2)}" ${f.hint ? `placeholder="${U.esc(f.hint)}"` : ''}>`;
     else if (f.type === 'int') input = `<input type="number" step="1" ${common} value="${v ?? ''}">`;
     else if (f.type === 'date') input = `<input type="date" ${common} value="${v ?? ''}" ${f.hint ? `placeholder="${U.esc(f.hint)}"` : ''}>`;
-    else input = `<input type="text" ${common} value="${U.esc(v ?? '')}" ${f.list ? `list="dl-${f.list}"` : ''} ${f.hint ? `placeholder="${U.esc(f.hint)}"` : ''}>`;
+    else input = `<input type="text" ${common} value="${U.esc(v ?? '')}" ${f.list ? `list="dl-${f.list}"` : ''} ${f.hint ? `placeholder="${U.esc(f.hint)}"` : ''} ${f.type === 'trim' && v && !U.parseTrim(v) ? 'style="border-color:var(--absent)" title="Format attendu : AAAATn, ex. 2024T4"' : ''}>`;
     const note = meta.note || (meta.deduit ? 'déduit' : meta.learned ? 'appris' : '');
     return `<div class="f ${conf}" title="${U.esc(note)}"><label title="${U.esc(f.label)}">${U.esc(f.label)}${note ? ` <span class="muted small">(${U.esc(note)})</span>` : ''}</label>${input}${src}</div>`;
   },
   readField(f, el) {
     const raw = el.value;
+    if (f.type === 'trim') return raw.trim() === '' ? null : (INDICES.normPeriode(raw) || raw.trim());
     if (f.type === 'enum' || f.type === 'text' || f.type === 'textarea' || f.type === 'date') return raw === '' ? null : raw;
     if (f.type === 'bool') return raw === '' ? null : raw === '1';
     if (f.type === 'int') return raw === '' ? null : parseInt(raw, 10);

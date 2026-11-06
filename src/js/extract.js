@@ -111,7 +111,7 @@ const EXTRACT = {
     return { orig, norm, flat: norm.replace(/\n/g, ' '), pageStarts };
   },
   // Normalisation qui conserve la longueur (1 caractère -> 1 caractère) pour garder les offsets alignés
-  normKeepLen(s) { return s.normalize('NFC').toLowerCase().replace(/[àâä]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o').replace(/[ùûü]/g, 'u').replace(/ç/g, 'c').replace(/œ/g, 'o').replace(/[  ]/g, ' ').replace(/[’‘`´]/g, "'").replace(/[«»“”]/g, '"'); },
+  normKeepLen(s) { return s.toLowerCase().replace(/[àâä]/g, 'a').replace(/[éèêë]/g, 'e').replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o').replace(/[ùûü]/g, 'u').replace(/ç/g, 'c').replace(/œ/g, 'o').replace(/[  ]/g, ' ').replace(/[’‘`´]/g, "'").replace(/[«»“”]/g, '"'); },
   pageAt(ctx, off) { let p = 1; for (const ps of ctx.pageStarts) if (off >= ps.start) p = ps.num; return p; },
   compileRe(re) { const src = re.source.replace(/NUMCUR/g, EXTRACT.NUM + EXTRACT.CUR).replace(/NUM/g, EXTRACT.NUM).replace(/DATE/g, EXTRACT.DATE); return new RegExp(src, re.flags + (re.flags.includes('d') ? '' : 'd')); },
   hayFor(r, ctx) { return r.nl ? ctx.norm : ctx.flat; },
@@ -200,7 +200,7 @@ const EXTRACT = {
     const g = k => out[k] && out[k].value;
     if (!g('terme') && g('periodicite')) out.terme = { value: 'echoir', conf: 'doute', deduit: true };
     if (g('dateEffet') && !g('dateFin') && g('dureeMois')) out.dateFin = { value: U.addDays(U.addMonths(g('dateEffet'), g('dureeMois')), -1), conf: 'doute', deduit: true };
-    if (g('dateEffet') && g('dateFin') && !g('dureeMois')) { const d = U.fromISO(g('dateEffet')), e = U.fromISO(g('dateFin')); const m = (e.getFullYear() - d.getFullYear()) * 12 + e.getMonth() - d.getMonth() + (e.getDate() >= d.getDate() - 1 ? 1 : 0); out.dureeMois = { value: m, conf: 'doute', deduit: true }; }
+    if (g('dateEffet') && g('dateFin') && !g('dureeMois')) { const d = U.fromISO(g('dateEffet')), e = U.fromISO(g('dateFin')); const m = (e.getFullYear() - d.getFullYear()) * 12 + e.getMonth() - d.getMonth() + (e.getDate() >= d.getDate() ? 1 : 0); out.dureeMois = { value: m, conf: 'doute', deduit: true }; }
     if (!g('indexRevisionPeriode') && g('indexBasePeriode')) out.indexRevisionPeriode = { value: U.trimAdd(g('indexBasePeriode'), 4), conf: 'doute', deduit: true };
     if (!g('indexPremiereDate') && g('dateEffet')) out.indexPremiereDate = { value: U.addMonths(g('dateEffet'), 12), conf: 'doute', deduit: true };
     if (g('chargesMontant') && typeof g('chargesMontant') === 'object') { const s = g('surfaceTotale'); out.chargesMontant = { ...out.chargesMontant, value: s ? U.round2(g('chargesMontant').perM2 * s) : null, conf: 'doute', note: `${g('chargesMontant').perM2} €/m²` }; }

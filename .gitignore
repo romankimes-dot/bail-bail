@@ -3,5 +3,6 @@ test/shots/
 test/tmp/
 donnees/
 dist/donnees/
+dist/index.html
 *.bbx
 *.log

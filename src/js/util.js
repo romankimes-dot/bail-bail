@@ -28,8 +28,12 @@ const U = {
     if (!t) return null;
     t = t.replace(/\s+/g, '');
     const hasComma = t.includes(','), hasDot = t.includes('.');
-    if (hasComma && hasDot) { t = t.replace(/\./g, '').replace(',', '.'); }
-    else if (hasComma) { t = t.replace(',', '.'); }
+    if (hasComma && hasDot) {
+      // le dernier séparateur suivi de 1 ou 2 chiffres est la décimale : "1.456,32" (FR) ou "1,456.32" (US)
+      const last = Math.max(t.lastIndexOf(','), t.lastIndexOf('.')); const dec = t.slice(last + 1);
+      if (dec.length <= 2) t = t.slice(0, last).replace(/[.,]/g, '') + '.' + dec; else t = t.replace(/[.,]/g, '');
+    }
+    else if (hasComma) { const parts = t.split(','); if (parts.length === 2 && parts[1].length !== 3) t = parts.join('.'); else if (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3) t = parts.join(''); else t = parts.join('.'); }
     else if (hasDot) {
       // "206.700" = 206700 (séparateur de milliers) sauf si 1 ou 2 décimales "137.42"
       const parts = t.split('.');
@@ -40,13 +44,14 @@ const U = {
   },
   MOIS: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
   // Parse une date française "16 octobre 2026", "16/10/2026", "1er janvier 2027", "2026-10-16"
+  validDate(y, m, d) { if (m < 1 || m > 12 || d < 1) return null; const last = new Date(y, m, 0).getDate(); if (d > last) return null; return `${y}-${U.pad(m)}-${U.pad(d)}`; },
   parseDate(s) {
-    if (!s) return null; s = String(s).trim();
-    let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); if (m) return s.slice(0, 10);
-    m = /(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/.exec(s);
-    if (m) { let y = +m[3]; if (y < 100) y += 2000; return `${y}-${U.pad(+m[2])}-${U.pad(+m[1])}`; }
-    m = /(\d{1,2})(?:er|e)?\s+([a-zéû]+)\s+(\d{4})/i.exec(s.normalize('NFC'));
-    if (m) { const mi = U.MOIS.findIndex(x => x.startsWith(m[2].toLowerCase().slice(0, 4).replace('fev', 'fév').replace('aou', 'aoû'))); if (mi >= 0) return `${m[3]}-${U.pad(mi + 1)}-${U.pad(+m[1])}`; }
+    if (!s) return null; if (s instanceof Date) return isNaN(s) ? null : U.toISO(s); s = String(s).trim();
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s); if (m) return U.validDate(+m[1], +m[2], +m[3]);
+    m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(s);
+    if (m) { let y = +m[3]; if (y < 100) y += 2000; const a = +m[1], b = +m[2]; return U.validDate(y, b, a) || (a <= 12 ? U.validDate(y, a, b) : null); } // JJ/MM/AAAA, sinon MM/JJ/AAAA si seul ce sens est valide
+    m = /(\d{1,2})(?:er|e)?\s+([a-zéèêû]+)\s+(\d{4})/i.exec(s.normalize('NFC'));
+    if (m) { const mot = U.norm(m[2]).slice(0, 4); const mi = U.MOIS.findIndex(x => U.norm(x).startsWith(mot)); if (mi >= 0) return U.validDate(+m[3], mi + 1, +m[1]); }
     return null;
   },
   // Nombres écrits en lettres (durées) : "trois" -> 3

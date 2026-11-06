@@ -7,7 +7,7 @@ const CALC = {
   LABELS: { bureau: 'Rent Office', entrepot: 'Rent Warehouse', activite: 'Rent Warehouse', parking: 'Rent Parking', autre: 'Rent', charges: 'Service Charge Advance', taxeFonciere: 'Property Tax (VATex)', depot: 'Rent Deposit (VATex)' },
   NB: { mensuel: 12, trimestriel: 4, semestriel: 2, annuel: 1 },
   MONTHS: { mensuel: 1, trimestriel: 3, semestriel: 6, annuel: 12 },
-  code(type) { return (CALC.codes || CALC.DEFAULT_CODES)[type] || ''; },
+  code(type) { return String((CALC.codes || CALC.DEFAULT_CODES)[type] || '').trim().toLowerCase(); },
   loyerAnnuel(bail) { const lots = Array.isArray(bail.lots) ? bail.lots : []; return lots.reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0) || (+bail.loyerAnnuelHT || 0); },
   // Répartit le loyer total sur les lots au prorata des surfaces ; les parkings (ou lots marqués fixes) gardent leur montant
   repartir(bail, total) {
@@ -23,7 +23,7 @@ const CALC = {
   yardiTenant(bail, lot) { const t = (bail.yardi && bail.yardi.tenantCodes || [])[0] || ''; const u = lot && lot.unitCode || ''; const ids = [u, t].filter(Boolean).join('-'); return `${bail.preneur || ''}${lot && lot.lot ? ` Lot ${lot.lot}` : ''}${ids ? ` (${ids})` : ''}`.trim(); },
   // Palier applicable à une date (loyer annuel HT de base, hors indexation)
   loyerBaseAt(bail, date, montantLigne) {
-    const p = (bail.paliers || []).find(p => p.du <= date && (!p.au || date <= p.au));
+    const p = (bail.paliers || []).find(p => p.du && p.du <= date && (!p.au || date <= p.au));
     if (p && p.montantAnnuelHT) { const tot = CALC.loyerAnnuel(bail); return tot ? montantLigne * (p.montantAnnuelHT / tot) : montantLigne; }
     return montantLigne;
   },
@@ -45,7 +45,7 @@ const CALC = {
       if (ix.plafond) c = Math.min(c, 1 + ix.plafond / 100);
       if (ix.plancher) c = Math.max(c, 1); // pas de baisse si clause de non-diminution
       res.steps.push({ date: anniv, periode, base: prev, revision: row.valeur, coef: c });
-      res.coef *= c; prev = row.valeur; k++; anniv = U.addMonths(ix.premiereDate, 12 * k);
+      res.coef *= c; prev = row.valeur; anniv = U.addMonths(ix.premiereDate, 12 * k); k++;
     }
     return res;
   },
@@ -67,12 +67,14 @@ const CALC = {
     return out;
   },
   // Découpe les périodes contenant une date anniversaire d'indexation : l'ancien loyer s'applique avant, le nouveau après
-  splitAtAnniversaries(bail, periodes) {
-    const ix = bail.index || {}; if (!ix.premiereDate || !ix.type || ix.type === 'aucun') return periodes;
+  splitAtAnniversaries(bail, periodes, extraCuts = []) {
+    const ix = bail.index || {}; const hasIx = ix.premiereDate && ix.type && ix.type !== 'aucun';
+    const fixed = [...extraCuts, ...(bail.paliers || []).map(p => p.du), ...(bail.paliers || []).map(p => p.au ? U.addDays(p.au, 1) : null)].filter(Boolean);
     const out = [];
     for (const p of periodes) {
-      let cuts = []; let d = ix.premiereDate; let n = 0;
-      while (d <= p.au && n < 80) { if (d > p.du) cuts.push(d); d = U.addMonths(ix.premiereDate, 12 * ++n); }
+      let cuts = fixed.filter(d => d > p.du && d <= p.au); let d = hasIx ? ix.premiereDate : null; let n = 0;
+      while (d && d <= p.au && n < 80) { if (d > p.du) cuts.push(d); d = U.addMonths(ix.premiereDate, 12 * ++n); }
+      cuts = [...new Set(cuts)].sort();
       if (!cuts.length) { out.push(p); continue; }
       let start = p.du;
       for (const c of cuts) { out.push({ ...p, du: start, au: U.addDays(c, -1), partiel: true, indexCut: true }); start = c; }
@@ -83,7 +85,7 @@ const CALC = {
   // Prorata d'une période partielle
   prorata(p, mode) {
     if (!p.partiel) return 1;
-    if (mode === '30/360') { const d30 = (a, b) => { const A = U.fromISO(a), B = U.fromISO(b); const da = Math.min(A.getDate(), 30), db = Math.min(B.getDate(), 30); return (B.getFullYear() - A.getFullYear()) * 360 + (B.getMonth() - A.getMonth()) * 30 + (db - da) + 1; }; return d30(p.du, p.au) / d30(p.fullDu, p.fullAu); }
+    if (mode === '30/360') { const d30 = (a, b) => { const A = U.fromISO(a), B = U.fromISO(b); const eom = x => x.getMonth() === 1 && x.getDate() === new Date(x.getFullYear(), 2, 0).getDate(); const da = eom(A) ? 30 : Math.min(A.getDate(), 30), db = eom(B) ? 30 : Math.min(B.getDate(), 30); return (B.getFullYear() - A.getFullYear()) * 360 + (B.getMonth() - A.getMonth()) * 30 + (db - da) + 1; }; return d30(p.du, p.au) / d30(p.fullDu, p.fullAu); }
     return (U.daysBetween(p.du, p.au) + 1) / (U.daysBetween(p.fullDu, p.fullAu) + 1);
   },
   inFranchise(bail, p) {
@@ -98,7 +100,8 @@ const CALC = {
   depotLignes(bail, from, to) {
     const dp = bail.depot || {}; if (!dp.montant && !dp.mois) return [];
     const out = []; const mk = (date, libelle, montant, note) => out.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode: (bail.yardi && bail.yardi.tenantCodes || []).join(', '), actif: bail.actif, propertyCode: bail.yardi && bail.yardi.propertyCode || '', yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, null), lot: '', unitCode: '', du: date, au: date, periode: date.slice(0, 7), type: 'depot', chargeCode: CALC.code('depot'), libelle, ht: U.round2(montant), tauxTva: 0, tva: 0, ttc: U.round2(montant), coef: 1, prorata: 1, franchise: 0, note });
-    const mois = dp.mois || (bail.loyerAnnuelHT ? Math.round(dp.montant / (CALC.loyerAnnuel(bail) / 12)) : null);
+    const la = CALC.loyerAnnuel(bail); let mois = dp.mois || null;
+    if (!mois && la && dp.montant) { const r = dp.montant / (la / 12); if (Math.abs(r - Math.round(r)) < 0.05) mois = Math.round(r); }
     const cible = (date) => { const ix = CALC.indexCoef(bail, date); return mois ? U.round2(CALC.loyerAnnuel(bail) * ix.coef / 12 * mois) : U.round2((dp.montant || 0) * ix.coef); };
     let courant = dp.montant || cible(bail.dateEffet || from);
     if (bail.dateEffet && bail.dateEffet >= from && bail.dateEffet <= to) mk(bail.dateEffet, `Dépôt de garantie initial${mois ? ` (${mois} mois)` : ''}`, courant);
@@ -113,16 +116,38 @@ const CALC = {
     return out;
   },
   // Montant HT des loyers calculés sur une plage quelconque [du, au], par code de charge
-  montantSur(bail, du, au) { const r = CALC.quittance(bail, du, au, { loyersSeuls: false, depot: true }); const m = {}; for (const l of r.lignes) m[l.chargeCode] = U.round2((m[l.chargeCode] || 0) + l.ht); return { parCode: m, warnings: r.warnings }; },
-  quittance(bail, from, to, { loyersSeuls = false, depot = false } = {}) {
+  montantSur(bail, du, au, avenants = []) { const r = CALC.quittanceFamille(bail, avenants, du, au, { loyersSeuls: false, depot: true }); const m = {}; for (const l of r.lignes) m[l.chargeCode] = U.round2((m[l.chargeCode] || 0) + l.ht); return { parCode: m, warnings: r.warnings }; },
+  // Avenants : fiche en vigueur à une date (le bail ou l'avenant le plus récent dont la date d'effet est passée)
+  avenantsDe(bail, tous) { return (tous || []).filter(a => a.parentId === bail.id && a.dateEffet).sort((a, b) => a.dateEffet.localeCompare(b.dateEffet)); },
+  enVigueur(bail, avenants, date) { let cur = bail; for (const a of avenants) if (a.dateEffet <= date) cur = a; return cur; },
+  // Quittancement d'un bail et de ses avenants : chaque sous-période prend les conditions de la fiche en vigueur
+  quittanceFamille(bail, avenants, from, to, opts) {
+    const avs = CALC.avenantsDe(bail, avenants); if (!avs.length) return CALC.quittance(bail, from, to, opts);
+    const lignes = [], warn = new Set();
+    // bornes : le bail (ou le dernier avenant qui prolonge) ; découpe aux dates d'effet des avenants
+    const fin = [bail.dateFin, ...avs.map(a => a.dateFin)].filter(Boolean).sort().pop() || to;
+    const cuts = avs.map(a => a.dateEffet);
+    for (const p of CALC.splitAtAnniversaries(bail, CALC.periodes({ ...bail, dateFin: fin }, from, to), cuts)) {
+      const eff = CALC.enVigueur(bail, avs, p.du);
+      // la fiche en vigueur hérite des bornes et des champs non renseignés du bail
+      const merged = { ...bail, ...Object.fromEntries(Object.entries(eff).filter(([k, v]) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length) && !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length))), id: bail.id, ref: bail.ref, parentId: undefined, dateEffet: bail.dateEffet, dateFin: fin, statut: bail.statut };
+      merged.index = { ...(bail.index || {}), ...Object.fromEntries(Object.entries(eff.index || {}).filter(([k, v]) => v !== null && v !== undefined && v !== '')) };
+      const r = CALC.quittance(merged, p.du, p.au, { ...opts, _noSplit: true });
+      r.lignes.forEach(l => { if (eff !== bail) l.note = `${l.note ? l.note + ' · ' : ''}avenant ${eff.ref || U.fmtDate(eff.dateEffet)}`; }); lignes.push(...r.lignes); r.warnings.forEach(w => warn.add(w));
+    }
+    if (opts && opts.depot) { const dl = CALC.depotLignes(bail, from, to); for (const d of dl) if (!lignes.some(l => l.type === 'depot' && l.du === d.du)) lignes.push(d); }
+    lignes.sort((a, b) => a.du.localeCompare(b.du) || (a.type === 'depot') - (b.type === 'depot'));
+    return { lignes, warnings: [...warn] };
+  },
+  quittance(bail, from, to, { loyersSeuls = false, depot = false, _noSplit = false } = {}) {
     const tva = bail.tva && bail.tva.option === false ? 0 : (bail.tva && bail.tva.taux != null ? +bail.tva.taux : 20);
     const mode = bail.prorata || 'jours'; const lignes = []; const warn = new Set();
     const nb = CALC.NB[bail.periodicite || 'trimestriel'];
-    for (const p of CALC.splitAtAnniversaries(bail, CALC.periodes(bail, from, to))) {
+    for (const p of (_noSplit ? CALC.periodes(bail, from, to) : CALC.splitAtAnniversaries(bail, CALC.periodes(bail, from, to)))) {
       const pr = CALC.prorata(p, mode); const fr = CALC.inFranchise(bail, p);
       const ix = CALC.indexCoef(bail, p.du); ix.missing.forEach(m => warn.add(`Indice ${bail.index.type} ${m} manquant`)); ix.unverified.forEach(m => warn.add(`Indice ${bail.index.type} ${m} non vérifié`));
       const tenantCode = (bail.yardi && bail.yardi.tenantCodes || []).join(', '), propertyCode = bail.yardi && bail.yardi.propertyCode || '';
-      const push = (type, libelle, ht, extra = {}) => { ht = U.round2(ht); const t = extra.tva === 0 ? 0 : tva; const tv = U.round2(ht * t / 100); lignes.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode, actif: bail.actif, propertyCode, yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, extra.lotObj), lot: extra.lotObj ? extra.lotObj.lot : '', unitCode: extra.lotObj ? extra.lotObj.unitCode || '' : '', du: p.du, au: p.au, periode: p.du.slice(0, 7), type, chargeCode: CALC.code(type), libelle, ht, tauxTva: t, tva: tv, ttc: U.round2(ht + tv), coef: ix.coef, prorata: pr, franchise: fr, base: extra.base, note: extra.note }); };
+      const push = (type, libelle, ht, extra = {}) => { ht = U.round2(ht); const t = extra.tva === 0 ? 0 : tva; const tv = U.round2(ht * t / 100); lignes.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode, actif: bail.actif, propertyCode, yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, extra.lotObj), lot: extra.lotObj ? extra.lotObj.lot : '', unitCode: extra.lotObj ? extra.lotObj.unitCode || '' : '', du: p.du, au: p.au, periode: p.du.slice(0, 7), type, chargeCode: CALC.code(type), libelle, ht, tauxTva: t, tva: tv, ttc: U.round2(ht + tv), coef: ix.coef, prorata: pr, franchise: fr, base: extra.base, note: extra.note, jours: U.daysBetween(p.du, p.au) + 1, joursPeriode: U.daysBetween(p.fullDu, p.fullAu) + 1, indexDetail: ix.steps.map(s => `${bail.index.type} ${s.periode}=${s.revision} / ${s.base} (×${s.coef.toFixed(4)})`).join(' ; ') }); };
       const lots = Array.isArray(bail.lots) && bail.lots.length ? bail.lots : [{ lot: bail.lotsTexte || '', type: 'bureau', montantAnnuelHT: bail.loyerAnnuelHT }];
       for (const l of lots) {
         const base = CALC.loyerBaseAt(bail, p.du, +l.montantAnnuelHT || 0);
@@ -134,7 +159,7 @@ const CALC = {
       if (ch.taxeFonciereMontant) push('taxeFonciere', 'Taxe foncière', ch.taxeFonciereMontant / nb * pr, { tva: 0 });
       if (!depot && bail.depot && bail.depot.montant && bail.dateEffet >= p.du && bail.dateEffet <= p.au) push('depot', 'Dépôt de garantie', bail.depot.montant, { tva: 0, prorata: 1 });
     }
-    if (depot) lignes.push(...CALC.depotLignes(bail, from, to));
+    if (depot && !_noSplit) lignes.push(...CALC.depotLignes(bail, from, to));
     lignes.sort((a, b) => a.du.localeCompare(b.du) || (a.type === 'depot') - (b.type === 'depot'));
     return { lignes, warnings: [...warn] };
   },

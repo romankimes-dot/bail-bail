@@ -24,9 +24,9 @@ const PDF = {
         line.parts.push({ x, str: it.str, w: it.width, h: it.height, hasEOL: it.hasEOL });
       }
       lines.sort((a, b) => b.y - a.y);
-      const text = lines.map(l => l.parts.sort((a, b) => a.x - b.x).map(p => p.str).join(' ').replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+      const text = lines.map(l => l.parts.sort((a, b) => a.x - b.x).map(p => p.str).join(' ').replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n').normalize('NFC');
       const vp = page.getViewport({ scale: 1 });
-      pages.push({ num: i, text, width: vp.width, height: vp.height, items: items.filter(it => it.str.trim()).map(it => ({ s: it.str, x: Math.round(it.transform[4] * 10) / 10, y: Math.round(it.transform[5] * 10) / 10, w: Math.round(it.width * 10) / 10, h: Math.round((it.height || Math.abs(it.transform[3]) || 10) * 10) / 10 })) });
+      pages.push({ num: i, text, width: vp.width, height: vp.height, items: items.filter(it => it.str.trim()).map(it => ({ s: it.str.normalize('NFC'), x: Math.round(it.transform[4] * 10) / 10, y: Math.round(it.transform[5] * 10) / 10, w: Math.round(it.width * 10) / 10, h: Math.round((it.height || Math.abs(it.transform[3]) || 10) * 10) / 10 })) });
       if (onProgress) onProgress(i, doc.numPages);
     }
     return pages;
