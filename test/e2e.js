@@ -61,6 +61,11 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   wb.Sheets['Baux'] = XLSX.utils.json_to_sheet(rows); fs.writeFileSync(vpath, XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }));
   await p.setInputFiles('#p-verif-file', vpath); await p.waitForTimeout(800);
   console.log('après import classeur', JSON.stringify(await p.evaluate(() => APP.baux.map(b => [b.ref, b.statut, b.franchiseMois, b.yardi.tenantCodes, b.preneur, b.loyerAnnuelHT]))));
+  // rattachement d'un PDF à un bail créé par le classeur (référence dans le nom de fichier)
+  const pdfB = path.join(__dirname, 'tmp', '24.002.02 bail nouveau.pdf'); fs.copyFileSync(path.join(__dirname, 'fixtures/bail_test_A.pdf'), pdfB);
+  await p.click('#tabs button[data-view="dashboard"]'); await p.setInputFiles('#in-files', [pdfB]); await p.waitForFunction(() => APP.lastImport && /rattach/.test(APP.lastImport) && !APP.importing);
+  console.log(await p.evaluate(() => [APP.lastImport, APP.baux.map(b => [b.ref, !!b.pdfId, b.preneur, b.loyerAnnuelHT, b.dateEffet])]));
+  await p.click('#tabs button[data-view="params"]'); await p.waitForSelector('#p-actif-fromdata');
   // actifs paramétrés
   await p.click('#p-actif-fromdata'); await p.waitForTimeout(300); console.log('actifs', JSON.stringify(await p.evaluate(() => APP.actifs)));
   await p.screenshot({ path: path.join(shots, '7-params.png') });

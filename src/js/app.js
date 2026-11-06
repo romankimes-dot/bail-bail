@@ -118,25 +118,52 @@ const APP = {
     files = files.filter(f => /\.pdf$/i.test(f.name)); if (!files.length) { UI.toast('Aucun PDF'); return; }
     if (APP.importing) { UI.toast('Import déjà en cours'); return; } APP.importing = true;
     const prog = UI.$('#imp-progress'), bar = UI.$('#imp-bar'), msg = UI.$('#imp-msg'); if (prog) prog.classList.remove('hidden');
-    let done = 0, skipped = 0, errors = 0, ocrN = 0;
+    let done = 0, skipped = 0, errors = 0, ocrN = 0, attached = 0;
     for (const f of files) {
       const upd = (t) => { if (bar) bar.style.width = `${Math.round(done / files.length * 100)}%`; if (msg) msg.textContent = `${done}/${files.length} – ${f.name} : ${t}`; };
       try {
         if (APP.baux.some(b => b.pdfName === f.name && b.pdfSize === f.size)) { skipped++; done++; upd('déjà importé'); continue; }
+        const refName = (/^(\d{2}\.\d{3}\.\d{2,3})/.exec(f.name) || [])[1]; const orphan = refName ? APP.baux.find(b => !b.pdfId && (b.ref || '').trim() === refName) : null;
         upd('lecture'); const ab = await U.readFile(f); const doc = await PDF.open(ab);
         let pages = await PDF.extractText(doc, (i, n) => upd(`texte page ${i}/${n}`));
         let ocr = false;
         const emptyPages = pages.filter(p => p.text.replace(/\s/g, '').length < 80);
         if (emptyPages.length > pages.length / 2) { ocr = true; ocrN++; pages = await OCR.ocrDocument(doc, (i, n) => upd(`OCR page ${i}/${n}`)); }
         else if (emptyPages.length) { ocr = true; ocrN++; const worker = await OCR.get(); const canvas = document.createElement('canvas'); for (const p of emptyPages) { upd(`OCR page ${p.num}`); await PDF.render(doc, p.num, canvas, 2); const r = await worker.recognize(canvas); p.text = r.data.text.normalize('NFC'); p.ocr = true; } }
-        upd('extraction'); const bail = APP.buildBail(f, ab, pages, ocr);
-        await DB.put('pdfs', { id: bail.pdfId, name: f.name, data: ab, pages, ocr });
-        await DB.put('baux', bail); APP.baux.push(bail); doc.destroy();
+        upd('extraction');
+        if (orphan) { await APP.attachPdf(orphan, f, ab, pages, ocr); attached++; }
+        else { const bail = APP.buildBail(f, ab, pages, ocr); await DB.put('pdfs', { id: bail.pdfId, name: f.name, data: ab, pages, ocr }); await DB.put('baux', bail); APP.baux.push(bail); }
+        doc.destroy();
       } catch (e) { console.error(e); errors++; UI.toast(`Erreur ${f.name} : ${e.message}`, 4000); }
       done++; upd('terminé');
     }
-    APP.importing = false; APP.lastImport = `Import terminé le ${new Date().toLocaleString('fr-FR')} : ${done - skipped - errors} ajoutés, ${skipped} ignorés, ${errors} erreurs, ${ocrN} avec OCR`; UI.toast(APP.lastImport, 6000);
+    APP.importing = false; APP.lastImport = `Import terminé le ${new Date().toLocaleString('fr-FR')} : ${done - skipped - errors - attached} ajoutés, ${attached} rattachés à un bail existant par la référence, ${skipped} ignorés, ${errors} erreurs, ${ocrN} avec OCR`; UI.toast(APP.lastImport, 6000);
     APP.render();
+  },
+  // Rattache un PDF à un bail existant : les champs vides sont remplis par l'extraction, les champs renseignés sont conservés
+  async attachPdf(b, file, ab, pages, ocr) {
+    const fresh = APP.buildBail(file, ab, pages, ocr);
+    const vide = v => v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length);
+    for (const f of UI.FORM) { if (f.group || f.key === 'ref' || f.key === 'statut') continue; const path = f.path || f.key; if (vide(UI.getPath(b, path)) && !vide(UI.getPath(fresh, path))) { UI.setPath(b, path, UI.getPath(fresh, path)); if (fresh.fields[f.key]) (b.fields ||= {})[f.key] = fresh.fields[f.key]; } }
+    if (!Array.isArray(b.lots) || !b.lots.length) b.lots = fresh.lots; if (!b.loyerAnnuelHT) b.loyerAnnuelHT = fresh.loyerAnnuelHT;
+    if (b.yardi && !b.yardi.propertyCode && fresh.yardi.propertyCode) b.yardi.propertyCode = fresh.yardi.propertyCode;
+    for (const [k, m] of Object.entries(fresh.fields)) if (!b.fields[k] || b.fields[k].conf !== 'manuel') b.fields[k] = { ...m, ...(b.fields[k] || {}), page: m.page, snippet: m.snippet, offset: m.offset };
+    b.anomalies = [...new Set([...(b.anomalies || []), ...fresh.anomalies])]; if (b.anomalies.length && b.statut !== 'valide') b.statut = 'anomalie';
+    Object.assign(b, { pdfId: fresh.pdfId, pdfName: file.name, pdfSize: file.size, pdfPages: pages.length, ocr, updated: new Date().toISOString() });
+    (b.history ||= []).push({ date: new Date().toISOString(), champ: 'PDF', avant: null, apres: file.name });
+    await DB.put('pdfs', { id: b.pdfId, name: file.name, data: ab, pages, ocr }); await DB.put('baux', b);
+    const i = APP.baux.findIndex(x => x.id === b.id); if (i >= 0) APP.baux[i] = b;
+  },
+  async attachPdfFromPicker(file) {
+    const b = APP.sel; if (!b || !file) return; UI.toast('Lecture du PDF…');
+    try {
+      const ab = await U.readFile(file); const doc = await PDF.open(ab); let pages = await PDF.extractText(doc); let ocr = false;
+      const empty = pages.filter(p => p.text.replace(/\s/g, '').length < 80);
+      if (empty.length) { ocr = true; const worker = await OCR.get(); const canvas = document.createElement('canvas'); for (const p of empty) { await PDF.render(doc, p.num, canvas, 2); const r = await worker.recognize(canvas); p.text = r.data.text.normalize('NFC'); p.ocr = true; } }
+      if (b.pdfId) await DB.del('pdfs', b.pdfId);
+      const stored = APP.baux.find(x => x.id === b.id); await APP.attachPdf(stored, file, ab, pages, ocr); doc.destroy();
+      APP.docId = null; await APP.select(b.id); UI.toast('PDF associé, champs vides complétés par l\'extraction');
+    } catch (e) { console.error(e); UI.toast('Échec : ' + e.message, 5000); }
   },
   buildBail(file, ab, pages, ocr) {
     const r = EXTRACT.run(pages, APP.learned, APP.actifs); const F = r.fields; const g = k => F[k] && F[k].value;
@@ -207,7 +234,7 @@ const APP = {
     b.yardi = b.yardi || { tenantCodes: [], unitCodes: [] }; b.yardi.tenantCodesText = (b.yardi.tenantCodes || []).join(', '); b.yardi.unitCodesText = (b.yardi.unitCodes || []).join(', ');
     b.lots = Array.isArray(b.lots) ? b.lots : []; b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT || null;
     const lists = {}; const ess = APP.mode === 'essentiel';
-    let html = `<div class="actions"><button id="b-list" title="Afficher / masquer la liste">☰</button><button id="b-width" title="Largeur du formulaire : normale / large">${APP.layout.form === 'large' ? '⇤ Réduire' : '⇔ Élargir'}</button><button id="b-mode" title="Afficher seulement les champs utiles au quittancement, ou tout">${ess ? 'Essentiel ▸ Complet' : 'Complet ▸ Essentiel'}</button><span style="flex:1"></span><button id="b-save" class="primary ${APP.dirty ? 'unsaved' : ''}" title="Ctrl+S">Enregistrer</button><button id="b-validate" title="Valider et passer au suivant (Ctrl+Entrée)">✓ Valider</button><button id="b-next" title="Bail suivant à vérifier">Suivant ▸</button><button id="b-reextract" class="ghost" title="Relancer l'extraction (règles + ancres apprises)">↻</button>${APP.isAvenant(b) ? '' : '<button id="b-dup" title="Créer un avenant lié à ce bail">+ Avenant</button>'}${ess ? '' : '<button id="b-del" class="danger ghost">Supprimer</button>'}</div>
+    let html = `<div class="actions"><button id="b-list" title="Afficher / masquer la liste">☰</button><button id="b-width" title="Largeur du formulaire : normale / large">${APP.layout.form === 'large' ? '⇤ Réduire' : '⇔ Élargir'}</button><button id="b-mode" title="Afficher seulement les champs utiles au quittancement, ou tout">${ess ? 'Essentiel ▸ Complet' : 'Complet ▸ Essentiel'}</button><span style="flex:1"></span><button id="b-save" class="primary ${APP.dirty ? 'unsaved' : ''}" title="Ctrl+S">Enregistrer</button><button id="b-validate" title="Valider et passer au suivant (Ctrl+Entrée)">✓ Valider</button><button id="b-next" title="Bail suivant à vérifier">Suivant ▸</button><button id="b-reextract" class="ghost" title="Relancer l'extraction (règles + ancres apprises)">↻</button><button id="b-pdf" title="${b.pdfId ? 'Remplacer le PDF associé' : 'Associer un PDF à ce bail'}">${b.pdfId ? '⇄ PDF' : '📎 Associer un PDF…'}</button><input type="file" id="b-pdf-file" accept="application/pdf" class="hidden">${APP.isAvenant(b) ? '' : '<button id="b-dup" title="Créer un avenant lié à ce bail">+ Avenant</button>'}${ess ? '' : '<button id="b-del" class="danger ghost">Supprimer</button>'}</div>
       <div class="legend"><span><span class="dot valide"></span>confiant</span><span><span class="dot a_verifier"></span>douteux</span><span><span class="dot anomalie"></span>non trouvé</span><span><span class="dot extrait"></span>saisi</span><span class="muted2">· œil = voir dans le PDF</span></div>`;
     if (APP.isAvenant(b)) { const par = APP.baux.find(x => x.id === b.parentId); html += `<div class="meta">Avenant du bail <a href="#" data-goto="${b.parentId}">${U.esc(par ? (par.ref || par.preneur) : '?')}</a>, effet le <b>${U.fmtDate(b.dateEffet) || '?'}</b>. Seuls les champs renseignés ici remplacent ceux du bail ; le quittancement du bail applique cet avenant à partir de sa date d'effet.</div>`; }
     else { const avs = APP.avenantsDe(b); if (avs.length) html += `<div class="meta">${avs.length} avenant(s) : ${avs.map(a => `<a href="#" data-goto="${a.id}">${U.esc(a.ref || U.fmtDate(a.dateEffet))}</a>`).join(', ')}</div>`; }
@@ -230,6 +257,7 @@ const APP = {
     UI.$('#b-save', el).onclick = () => APP.saveSel(true); UI.$('#b-validate', el).onclick = () => APP.validate(); UI.$('#b-reextract', el).onclick = () => APP.reextract();
     UI.$('#b-next', el).onclick = () => { let L = APP.filtered(); const i = L.findIndex(x => x.id === b.id); const nx = L.slice(i + 1).find(x => x.statut !== 'valide') || L.slice(0, i).find(x => x.statut !== 'valide'); if (nx) APP.select(nx.id); else UI.toast('Tous les baux filtrés sont validés'); };
     const bd = UI.$('#b-del', el); if (bd) bd.onclick = () => APP.deleteSel(); const bp = UI.$('#b-dup', el); if (bp) bp.onclick = () => APP.newBail(b);
+    UI.$('#b-pdf', el).onclick = () => UI.$('#b-pdf-file', el).click(); UI.$('#b-pdf-file', el).onchange = e => APP.attachPdfFromPicker(e.target.files[0]);
     UI.$('#b-list', el).onclick = () => { APP.setLayout({ list: !APP.layout.list }); if (APP.doc) APP.renderPdf(); };
     UI.$('#b-width', el).onclick = () => { APP.setLayout({ form: APP.layout.form === 'large' ? 'normal' : 'large' }); APP.renderForm(); if (APP.doc) APP.renderPdf(); };
     UI.$('#b-mode', el).onclick = async () => { APP.mode = ess ? 'complet' : 'essentiel'; await DB.setSetting('mode', APP.mode); APP.renderForm(); };
