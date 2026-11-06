@@ -8,7 +8,19 @@ const CALC = {
   NB: { mensuel: 12, trimestriel: 4, semestriel: 2, annuel: 1 },
   MONTHS: { mensuel: 1, trimestriel: 3, semestriel: 6, annuel: 12 },
   code(type) { return (CALC.codes || CALC.DEFAULT_CODES)[type] || ''; },
-  loyerAnnuel(bail) { return (bail.lignes || []).reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0) || (+bail.loyerAnnuelHT || 0); },
+  loyerAnnuel(bail) { const lots = Array.isArray(bail.lots) ? bail.lots : []; return lots.reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0) || (+bail.loyerAnnuelHT || 0); },
+  // Répartit le loyer total sur les lots au prorata des surfaces ; les parkings (ou lots marqués fixes) gardent leur montant
+  repartir(bail, total) {
+    const lots = Array.isArray(bail.lots) ? bail.lots : []; if (!lots.length) return;
+    const fixes = lots.filter(l => l.type === 'parking' || l.fixe), vars = lots.filter(l => !(l.type === 'parking' || l.fixe));
+    const reste = Math.max(0, (+total || 0) - fixes.reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0));
+    const surf = vars.reduce((s, l) => s + (+l.surface || 0), 0);
+    if (!vars.length) return;
+    let cum = 0; vars.forEach((l, i) => { const part = surf > 0 ? (+l.surface || 0) / surf : 1 / vars.length; l.montantAnnuelHT = i === vars.length - 1 ? U.round2(reste - cum) : U.round2(reste * part); cum += l.montantAnnuelHT; });
+  },
+  // Libellés Yardi : "Actif (fr101901)" et "PRENEUR Lot B1 (A00OF030-t0000859)"
+  yardiProperty(bail) { const c = bail.yardi && bail.yardi.propertyCode; return `${bail.actif || ''}${c ? ` (${c})` : ''}`.trim(); },
+  yardiTenant(bail, lot) { const t = (bail.yardi && bail.yardi.tenantCodes || [])[0] || ''; const u = lot && lot.unitCode || ''; const ids = [u, t].filter(Boolean).join('-'); return `${bail.preneur || ''}${lot && lot.lot ? ` Lot ${lot.lot}` : ''}${ids ? ` (${ids})` : ''}`.trim(); },
   // Palier applicable à une date (loyer annuel HT de base, hors indexation)
   loyerBaseAt(bail, date, montantLigne) {
     const p = (bail.paliers || []).find(p => p.du <= date && (!p.au || date <= p.au));
@@ -23,9 +35,10 @@ const CALC = {
     if (!prev && baseRow) prev = baseRow.valeur;
     if (!prev) { res.missing.push(ix.basePeriode); return res; }
     if (baseRow && !baseRow.verifie && !ix.baseValeur) res.unverified.push(ix.basePeriode);
+    const rev0 = U.parseTrim(ix.revisionPeriode) ? ix.revisionPeriode : U.trimAdd(ix.basePeriode, 4); // trimestre de la première révision
     let k = 1; let anniv = ix.premiereDate;
     while (anniv <= date && k < 60) {
-      const periode = U.trimAdd(ix.basePeriode, 4 * k); const row = INDICES.get(ix.type, periode);
+      const periode = U.trimAdd(rev0, 4 * (k - 1)); const row = INDICES.get(ix.type, periode);
       if (!row) { res.missing.push(periode); break; }
       if (!row.verifie) res.unverified.push(periode);
       let c = row.valeur / prev;
@@ -81,18 +94,21 @@ const CALC = {
     return (U.daysBetween(a, b) + 1) / (U.daysBetween(p.du, p.au) + 1); // part de la période en franchise
   },
   // Quittancement d'un bail sur [from, to] : lignes par période
-  quittance(bail, from, to) {
+  quittance(bail, from, to, { loyersSeuls = false } = {}) {
     const tva = bail.tva && bail.tva.option === false ? 0 : (bail.tva && bail.tva.taux != null ? +bail.tva.taux : 20);
     const mode = bail.prorata || 'jours'; const lignes = []; const warn = new Set();
     const nb = CALC.NB[bail.periodicite || 'trimestriel'];
     for (const p of CALC.splitAtAnniversaries(bail, CALC.periodes(bail, from, to))) {
       const pr = CALC.prorata(p, mode); const fr = CALC.inFranchise(bail, p);
       const ix = CALC.indexCoef(bail, p.du); ix.missing.forEach(m => warn.add(`Indice ${bail.index.type} ${m} manquant`)); ix.unverified.forEach(m => warn.add(`Indice ${bail.index.type} ${m} non vérifié`));
-      const push = (type, libelle, ht, extra = {}) => { ht = U.round2(ht); const t = extra.tva === 0 ? 0 : tva; const tv = U.round2(ht * t / 100); lignes.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, du: p.du, au: p.au, periode: p.du.slice(0, 7), type, chargeCode: CALC.code(type), libelle, ht, tauxTva: t, tva: tv, ttc: U.round2(ht + tv), coef: ix.coef, prorata: pr, franchise: fr, ...extra }); };
-      for (const l of (bail.lignes && bail.lignes.length ? bail.lignes : [{ libelle: 'Loyer', type: 'bureau', montantAnnuelHT: bail.loyerAnnuelHT }])) {
+      const tenantCode = (bail.yardi && bail.yardi.tenantCodes || []).join(', '), propertyCode = bail.yardi && bail.yardi.propertyCode || '';
+      const push = (type, libelle, ht, extra = {}) => { ht = U.round2(ht); const t = extra.tva === 0 ? 0 : tva; const tv = U.round2(ht * t / 100); lignes.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode, actif: bail.actif, propertyCode, yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, extra.lotObj), lot: extra.lotObj ? extra.lotObj.lot : '', unitCode: extra.lotObj ? extra.lotObj.unitCode || '' : '', du: p.du, au: p.au, periode: p.du.slice(0, 7), type, chargeCode: CALC.code(type), libelle, ht, tauxTva: t, tva: tv, ttc: U.round2(ht + tv), coef: ix.coef, prorata: pr, franchise: fr, base: extra.base, note: extra.note }); };
+      const lots = Array.isArray(bail.lots) && bail.lots.length ? bail.lots : [{ lot: bail.lotsTexte || '', type: 'bureau', montantAnnuelHT: bail.loyerAnnuelHT }];
+      for (const l of lots) {
         const base = CALC.loyerBaseAt(bail, p.du, +l.montantAnnuelHT || 0);
-        push(l.type || 'bureau', l.libelle || 'Loyer', base / nb * ix.coef * pr * (1 - fr), { base: base / nb });
+        push(l.type || 'bureau', `Loyer${l.lot ? ' lot ' + l.lot : ''}`, base / nb * ix.coef * pr * (1 - fr), { base: base / nb, lotObj: l });
       }
+      if (loyersSeuls) continue;
       const ch = bail.charges || {};
       if (ch.montantAnnuelHT) { const nbc = CALC.NB[ch.periodicite || bail.periodicite || 'trimestriel']; if (nbc === nb) push('charges', ch.mode === 'forfait' ? 'Forfait charges' : 'Provision charges', ch.montantAnnuelHT / nb * pr); else push('charges', 'Charges (périodicité différente)', ch.montantAnnuelHT / nb * pr, { note: `charges ${ch.periodicite}` }); }
       if (ch.taxeFonciereMontant) push('taxeFonciere', 'Taxe foncière', ch.taxeFonciereMontant / nb * pr, { tva: 0 });

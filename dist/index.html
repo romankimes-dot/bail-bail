@@ -7,90 +7,126 @@
 <meta name="referrer" content="no-referrer">
 <title>Baux – quittancement</title>
 <style>
-:root { --bg:#f6f7f9; --panel:#fff; --line:#dde1e6; --text:#1c2128; --muted:#6b7280; --accent:#1f5fbf; --ok:#1a7f37; --doute:#b45309; --absent:#b91c1c; --sel:#e8f0fe; --warn-bg:#fff7ed; }
-@media (prefers-color-scheme: dark) { :root { --bg:#14171c; --panel:#1c2026; --line:#2d333b; --text:#e6e9ee; --muted:#9aa4b2; --accent:#5b9cff; --ok:#3fb950; --doute:#f0a94a; --absent:#ff6b6b; --sel:#243049; --warn-bg:#3a2a12; } }
+:root {
+  --bg:#f3f5f8; --panel:#ffffff; --panel2:#f8fafc; --line:#e3e7ee; --line2:#cfd6e0; --text:#1b2330; --muted:#67738a; --muted2:#8b95a7;
+  --accent:#2457c5; --accent-bg:#e9effc; --accent-hover:#1c47a3; --ok:#1c8a4a; --ok-bg:#e6f6ec; --doute:#c46a0a; --doute-bg:#fff3e2; --absent:#c62828; --absent-bg:#fdecec;
+  --sel:#eaf0fd; --shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08); --radius:8px;
+}
+@media (prefers-color-scheme: dark) { :root { --bg:#12161c; --panel:#1a1f27; --panel2:#20262f; --line:#2b323d; --line2:#3a4350; --text:#e7ebf1; --muted:#9aa5b8; --muted2:#7c8798;
+  --accent:#6b9cff; --accent-bg:#1f2b45; --accent-hover:#89b0ff; --ok:#4cc26e; --ok-bg:#163424; --doute:#f2a94d; --doute-bg:#3b2a12; --absent:#ff7272; --absent-bg:#3d1c1c; --sel:#24304a; --shadow:none; } }
 * { box-sizing:border-box; }
-html, body { margin:0; height:100%; font:13px/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color:var(--text); background:var(--bg); }
+html, body { margin:0; height:100%; font:13.5px/1.45 "Segoe UI", -apple-system, system-ui, Roboto, "Helvetica Neue", Arial, sans-serif; color:var(--text); background:var(--bg); }
 button, input, select, textarea { font:inherit; color:inherit; }
-button { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:4px 10px; cursor:pointer; }
-button:hover { border-color:var(--accent); }
-button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-button.danger { color:var(--absent); }
-button:disabled { opacity:.5; cursor:default; }
-input, select, textarea { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:4px 6px; }
-input:focus, select:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+button { background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:5px 11px; cursor:pointer; transition:background .12s, border-color .12s; white-space:nowrap; }
+button:hover { background:var(--panel2); border-color:var(--accent); }
+button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
+button.primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); }
+button.danger { color:var(--absent); } button.danger:hover { background:var(--absent-bg); border-color:var(--absent); }
+button.ghost { border-color:transparent; background:transparent; } button.ghost:hover { background:var(--sel); }
+button:disabled { opacity:.45; cursor:default; }
+input, select, textarea { background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:5px 8px; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-bg); }
+input[type=search] { padding-left:8px; }
 .hidden { display:none !important; }
-.muted { color:var(--muted); } .small { font-size:11px; } .error { color:var(--absent); } .ok { color:var(--ok); } .warn { color:var(--doute); }
-code { background:var(--sel); padding:1px 4px; border-radius:3px; }
-/* verrouillage */
-.lock { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); z-index:50; }
-.lock-box { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:28px 32px; width:460px; max-width:95vw; }
-.lock-box h1 { font-size:18px; margin:0 0 8px; }
-.lock-box form { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
-/* barre */
-.topbar { display:flex; align-items:center; gap:16px; padding:6px 12px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; }
-.brand { font-weight:700; font-size:15px; }
-#tabs button { border:none; background:none; padding:6px 10px; border-radius:4px; }
-#tabs button.active { background:var(--sel); color:var(--accent); font-weight:600; }
-.filters { margin-left:auto; display:flex; gap:6px; align-items:center; }
-.filters select, .filters input { max-width:200px; }
-main { padding:12px; height:calc(100vh - 44px); overflow:auto; }
-/* génériques */
+.muted { color:var(--muted); } .small { font-size:12px; } .error { color:var(--absent); } .ok { color:var(--ok); } .warn { color:var(--doute); }
+code { background:var(--panel2); border:1px solid var(--line); padding:1px 5px; border-radius:4px; font-size:12px; }
+kbd { border:1px solid var(--line2); border-bottom-width:2px; border-radius:4px; padding:0 5px; font-size:11px; background:var(--panel2); font-family:inherit; }
+a { color:var(--accent); }
+/* ---- verrouillage ---- */
+.lock { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(160deg, var(--bg), var(--accent-bg)); z-index:50; }
+.lock-box { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:32px 36px; width:480px; max-width:95vw; box-shadow:0 10px 40px rgba(16,24,40,.12); }
+.lock-box h1 { font-size:20px; margin:0 0 6px; display:flex; align-items:center; gap:10px; }
+.lock-box h1::before { content:""; width:28px; height:28px; border-radius:7px; background:var(--accent); display:inline-block; mask:none; }
+.lock-box form { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
+.lock-box input { padding:9px 10px; font-size:14px; }
+.lock-box .primary { padding:9px; font-size:14px; }
+/* ---- barre supérieure ---- */
+.topbar { display:flex; align-items:center; gap:14px; padding:0 14px; height:50px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:10; box-shadow:var(--shadow); }
+.brand { font-weight:700; font-size:15px; display:flex; align-items:center; gap:8px; margin-right:6px; white-space:nowrap; }
+.brand::before { content:""; width:22px; height:22px; border-radius:6px; background:var(--accent); display:inline-block; }
+#tabs { display:flex; gap:2px; }
+#tabs button { border:none; background:none; padding:7px 12px; border-radius:6px; color:var(--muted); font-weight:500; }
+#tabs button:hover { background:var(--panel2); color:var(--text); }
+#tabs button.active { background:var(--accent-bg); color:var(--accent); font-weight:600; }
+.filters { margin-left:auto; display:flex; gap:8px; align-items:center; }
+.filters select, .filters input { max-width:210px; height:32px; }
+#btn-lock { height:32px; }
+main { padding:14px; height:calc(100vh - 50px); overflow:auto; }
+/* ---- génériques ---- */
 .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px; margin-bottom:14px; }
-.card { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
-.card .big { font-size:24px; font-weight:600; }
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; margin-bottom:14px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+.card .big { font-size:26px; font-weight:700; letter-spacing:-.01em; margin-top:2px; }
 .card.clickable { cursor:pointer; } .card.clickable:hover { border-color:var(--accent); }
-.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px; margin-bottom:12px; }
-h2 { font-size:15px; margin:0 0 10px; } h3 { font-size:13px; margin:14px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
-table { border-collapse:collapse; width:100%; background:var(--panel); }
-th, td { border-bottom:1px solid var(--line); padding:4px 6px; text-align:left; vertical-align:top; white-space:nowrap; }
-th { background:var(--bg); position:sticky; top:0; cursor:pointer; user-select:none; font-weight:600; }
+.card.c-accent { border-left:4px solid var(--accent); } .card.c-doute { border-left:4px solid var(--doute); } .card.c-absent { border-left:4px solid var(--absent); } .card.c-ok { border-left:4px solid var(--ok); }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; box-shadow:var(--shadow); }
+h2 { font-size:15px; margin:0 0 10px; font-weight:650; } h3 { font-size:11.5px; margin:16px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:650; }
+table { border-collapse:separate; border-spacing:0; width:100%; background:var(--panel); font-size:13px; }
+th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:middle; white-space:nowrap; }
+th { background:var(--panel2); position:sticky; top:0; cursor:pointer; user-select:none; font-weight:600; color:var(--muted); font-size:12px; z-index:1; }
 td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
-tr:hover td { background:var(--sel); }
+tbody tr:hover td { background:var(--sel); }
 tr.sel td { background:var(--sel); }
-.tag { display:inline-block; padding:1px 6px; border-radius:10px; font-size:11px; border:1px solid var(--line); }
-.tag.extrait { color:var(--accent); } .tag.a_verifier { color:var(--doute); } .tag.valide { color:var(--ok); } .tag.anomalie { color:var(--absent); } .tag.OK { color:var(--ok); } .tag.Écart { color:var(--absent); }
-.dropzone { border:2px dashed var(--line); border-radius:8px; padding:24px; text-align:center; color:var(--muted); }
-.dropzone.over { border-color:var(--accent); background:var(--sel); }
-.progress { height:8px; background:var(--line); border-radius:4px; overflow:hidden; margin:6px 0; } .progress > div { height:100%; background:var(--accent); transition:width .2s; }
-#toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:8px 14px; border-radius:6px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:30; max-width:80vw; }
-#toast.show { opacity:1; }
-#modal { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:40; }
-.modal-box { background:var(--panel); border-radius:8px; padding:20px; min-width:360px; max-width:90vw; max-height:90vh; overflow:auto; }
-/* vue baux : 3 panneaux */
-.baux { display:grid; grid-template-columns:280px 1fr 420px; gap:10px; height:100%; }
-.baux > div { background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:auto; min-height:0; }
-.list-item { padding:6px 10px; border-bottom:1px solid var(--line); cursor:pointer; }
-.list-item:hover, .list-item.sel { background:var(--sel); }
-.list-item .t { font-weight:600; } .list-item .s { color:var(--muted); font-size:11px; display:flex; justify-content:space-between; }
-.dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+.tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11.5px; font-weight:600; border:1px solid transparent; }
+.tag.extrait { color:var(--accent); background:var(--accent-bg); } .tag.a_verifier { color:var(--doute); background:var(--doute-bg); } .tag.valide { color:var(--ok); background:var(--ok-bg); } .tag.anomalie { color:var(--absent); background:var(--absent-bg); }
+.tag.OK { color:var(--ok); background:var(--ok-bg); } .tag.Écart { color:var(--absent); background:var(--absent-bg); } .tag.Yardi\ seul, .tag.Calcul\ seul, .tag.Yardi\ absent { color:var(--doute); background:var(--doute-bg); }
+.dropzone { border:2px dashed var(--line2); border-radius:var(--radius); padding:28px; text-align:center; color:var(--muted); background:var(--panel2); transition:all .15s; }
+.dropzone.over { border-color:var(--accent); background:var(--accent-bg); color:var(--accent); }
+.progress { height:8px; background:var(--line); border-radius:4px; overflow:hidden; margin:6px 0; } .progress > div { height:100%; background:var(--accent); transition:width .25s; }
+.progress.ok > div { background:var(--ok); }
+#toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(8px); background:#1b2330; color:#fff; padding:9px 16px; border-radius:8px; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; z-index:30; max-width:80vw; box-shadow:0 6px 24px rgba(0,0,0,.25); }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#modal { position:fixed; inset:0; background:rgba(16,24,40,.45); display:flex; align-items:center; justify-content:center; z-index:40; backdrop-filter:blur(2px); }
+.modal-box { background:var(--panel); border-radius:12px; padding:22px; min-width:380px; max-width:92vw; max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.empty { padding:28px; text-align:center; color:var(--muted); }
+.empty b { color:var(--text); }
+/* ---- vue baux ---- */
+.baux { display:grid; grid-template-columns:280px 1fr 500px; gap:12px; height:100%; }
+.baux > div { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:auto; min-height:0; box-shadow:var(--shadow); }
+#blist .toolbar { position:sticky; top:0; background:var(--panel); z-index:2; border-bottom:1px solid var(--line); padding:8px; }
+.list-progress { padding:6px 10px 8px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--line); }
+.list-item { padding:8px 12px; border-bottom:1px solid var(--line); cursor:pointer; border-left:3px solid transparent; }
+.list-item:hover { background:var(--panel2); }
+.list-item.sel { background:var(--sel); border-left-color:var(--accent); }
+.list-item .t { font-weight:600; display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.list-item .s { color:var(--muted); font-size:12px; display:flex; justify-content:space-between; gap:8px; margin-top:2px; }
+.list-item .s span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dot { display:inline-block; width:8px; height:8px; border-radius:50%; flex:none; }
 .dot.extrait { background:var(--accent); } .dot.a_verifier { background:var(--doute); } .dot.valide { background:var(--ok); } .dot.anomalie { background:var(--absent); }
-.viewer { background:#777 !important; position:relative; }
-.viewer .toolbar { position:sticky; top:0; background:var(--panel); padding:4px 8px; display:flex; gap:6px; align-items:center; z-index:2; border-bottom:1px solid var(--line); }
-.page { position:relative; margin:8px auto; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.4); }
+.viewer { background:#5d636d !important; position:relative; }
+.viewer .toolbar { position:sticky; top:0; background:var(--panel); padding:6px 10px; display:flex; gap:6px; align-items:center; z-index:2; border-bottom:1px solid var(--line); }
+.page { position:relative; margin:10px auto; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.35); }
 .page canvas { display:block; }
-.hl { position:absolute; background:rgba(255, 200, 0, .45); outline:1px solid rgba(220,120,0,.8); pointer-events:none; }
+.hl { position:absolute; background:rgba(255, 196, 0, .45); outline:2px solid rgba(230,140,0,.9); border-radius:2px; pointer-events:none; animation:pulse 1.2s ease-in-out 2; }
+@keyframes pulse { 0%,100% { outline-color:rgba(230,140,0,.9);} 50% { outline-color:rgba(230,140,0,.2);} }
 .pagelabel { position:absolute; top:4px; right:6px; font-size:10px; color:#999; }
-.form { padding:10px 12px; }
-.form .f { display:grid; grid-template-columns:150px 1fr 22px; gap:4px 6px; align-items:center; margin-bottom:4px; }
-.form .f label { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.form .f input, .form .f select, .form .f textarea { width:100%; border-left:4px solid var(--line); }
+.form { padding:0 14px 14px; }
+.form .actions { display:flex; gap:6px; margin:0 -14px 10px; padding:10px 14px; flex-wrap:wrap; position:sticky; top:0; background:var(--panel); z-index:3; border-bottom:1px solid var(--line); }
+.form .f { display:grid; grid-template-columns:150px 1fr 24px; gap:4px 8px; align-items:center; margin-bottom:5px; }
+.form.wide .f { grid-template-columns:200px 1fr 24px; }
+.form .f label { font-size:12.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.form .f input, .form .f select, .form .f textarea { width:100%; border-left:4px solid var(--line2); }
 .form .f.ok input, .form .f.ok select, .form .f.ok textarea { border-left-color:var(--ok); }
-.form .f.doute input, .form .f.doute select, .form .f.doute textarea { border-left-color:var(--doute); }
+.form .f.doute input, .form .f.doute select, .form .f.doute textarea { border-left-color:var(--doute); background:var(--doute-bg); }
 .form .f.absent input, .form .f.absent select, .form .f.absent textarea { border-left-color:var(--absent); }
 .form .f.manuel input, .form .f.manuel select, .form .f.manuel textarea { border-left-color:var(--accent); }
-.form .src { border:none; background:none; padding:0; font-size:13px; opacity:.7; } .form .src:hover { opacity:1; }
-.form .actions { display:flex; gap:6px; margin:10px 0; flex-wrap:wrap; position:sticky; top:0; background:var(--panel); padding:6px 0; z-index:1; }
-.anoms { background:var(--warn-bg); border:1px solid var(--doute); border-radius:4px; padding:6px 8px; margin-bottom:8px; }
-.sub { border:1px solid var(--line); border-radius:4px; padding:6px; margin-bottom:6px; }
-.sub table td, .sub table th { padding:2px 4px; } .sub input, .sub select { width:100%; }
-.legend span { margin-right:10px; }
-kbd { border:1px solid var(--line); border-radius:3px; padding:0 4px; font-size:11px; background:var(--bg); }
-.indices-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; }
-.indices-grid input { width:90px; }
+.form .src { border:none; background:none; padding:0 2px; font-size:14px; opacity:.55; } .form .src:hover { opacity:1; background:none; }
+.legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:6px 0 4px; align-items:center; }
+.legend span { display:inline-flex; align-items:center; gap:5px; }
+.meta { font-size:12px; color:var(--muted); background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:8px 10px; margin:8px 0; line-height:1.5; }
+.anoms { background:var(--doute-bg); border:1px solid var(--doute); border-radius:6px; padding:8px 10px; margin:8px 0; }
+.sub { border:1px solid var(--line); border-radius:6px; padding:8px; margin-bottom:8px; background:var(--panel2); }
+.sub table { background:transparent; } .sub table th { background:transparent; position:static; } .sub table td, .sub table th { padding:3px 4px; border-bottom:none; }
+.sub input, .sub select { width:100%; min-width:60px; background:var(--panel); } .sub select { min-width:95px; } .sub td:first-child input { min-width:70px; }
+.sub .row b { font-size:12.5px; }
+.unsaved::after { content:" •"; color:#ffd166; }
+.indices-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+.indices-grid table td { padding:2px 4px; } .indices-grid input { width:92px; text-align:right; }
+.indices-grid input.warn { background:var(--doute-bg); border-color:var(--doute); } .indices-grid input.ok { border-color:var(--line2); }
 .stick { position:sticky; top:0; background:var(--bg); z-index:2; padding-bottom:6px; }
-textarea.wide { width:100%; min-height:120px; font-family:ui-monospace, monospace; font-size:12px; }
+textarea.wide { width:100%; min-height:120px; font-family:ui-monospace, Consolas, monospace; font-size:12px; }
+.hint { font-size:12px; color:var(--muted); margin:6px 0 0; }
+.toolbar-title { font-weight:600; }
 
 </style>
 </head>
@@ -118,7 +154,7 @@ textarea.wide { width:100%; min-height:120px; font-family:ui-monospace, monospac
 </div>
 <div id="app" class="hidden">
   <header class="topbar">
-    <div class="brand">Baux</div>
+    <div class="brand">Baux &amp; quittancement</div>
     <nav id="tabs">
       <button data-view="dashboard">Tableau de bord</button>
       <button data-view="baux">Baux</button>
@@ -131,7 +167,7 @@ textarea.wide { width:100%; min-height:120px; font-family:ui-monospace, monospac
       <select id="f-actif" title="Filtrer par actif"><option value="">Tous les actifs</option></select>
       <select id="f-preneur" title="Filtrer par locataire"><option value="">Tous les locataires</option></select>
       <input id="f-search" type="search" placeholder="Rechercher…">
-      <button id="btn-lock" title="Verrouiller (Ctrl+L)">🔒</button>
+      <button id="btn-lock" title="Verrouiller (Ctrl+L)">🔒 Verrouiller</button>
     </div>
   </header>
   <main id="view"></main>
@@ -439,18 +475,24 @@ const INDICES = {
   TYPES: { ILC: 'Indice des loyers commerciaux (base 100 T1 2008)', ILAT: 'Indice des loyers des activités tertiaires (base 100 T1 2010)', ICC: 'Indice du coût de la construction (base 100 T4 1953)' },
   PREFILL: {
     ILC: {
+      2008: [100.00, 101.20, 102.46, 102.46], 2009: [102.73, 102.05, 101.21, 101.07], 2010: [101.36, 101.83, 102.36, 102.92],
+      2011: [102.86, 104.44, 105.31, 106.28], 2012: [107.01, 107.65, 108.17, 108.34], 2013: [108.53, 108.50, 108.47, 108.46], 2014: [108.50, 108.50, 108.52, 108.47],
       2015: [108.32, 108.38, 108.38, 108.41], 2016: [108.40, 108.40, 108.56, 108.91], 2017: [109.46, 110.00, 110.78, 111.33],
       2018: [111.87, 112.59, 113.45, 114.06], 2019: [114.64, 115.21, 115.60, 116.16], 2020: [116.23, 115.42, 115.70, 115.79],
       2021: [116.73, 118.41, 119.70, 118.59], 2022: [120.61, 123.65, 126.13, 126.05], 2023: [128.68, 131.49, 134.00, 132.63],
       2024: [133.68, 134.07, 135.21, 135.19], 2025: [136.04, 136.69, null, null],
     },
     ILAT: {
+      2010: [100.00, 100.37, 100.81, 101.45], 2011: [101.87, 102.17, 102.82, 103.37], 2012: [103.84, 104.44, 104.95, 105.35],
+      2013: [105.63, 105.91, 106.02, 106.17], 2014: [106.30, 106.47, 106.60, 106.80],
       2015: [107.69, 107.86, 107.98, 108.16], 2016: [108.20, 108.41, 108.69, 108.94], 2017: [109.41, 109.89, 110.36, 110.88],
       2018: [111.45, 112.01, 112.74, 113.30], 2019: [113.88, 114.47, 114.85, 115.43], 2020: [115.53, 114.33, 114.23, 114.06],
       2021: [114.87, 116.46, 117.61, 118.97], 2022: [120.73, 122.65, 125.23, 126.50], 2023: [127.46, 128.74, 131.17, 132.07],
       2024: [132.54, 133.28, 134.42, 134.99], 2025: [135.70, 136.34, null, null],
     },
     ICC: {
+      2005: [1270, 1276, 1278, 1332], 2006: [1362, 1366, 1381, 1406], 2007: [1385, 1435, 1443, 1474], 2008: [1497, 1562, 1594, 1523], 2009: [1503, 1498, 1502, 1507],
+      2010: [1508, 1517, 1520, 1533], 2011: [1554, 1593, 1624, 1638], 2012: [1617, 1666, 1648, 1639], 2013: [1646, 1637, 1612, 1615], 2014: [1648, 1621, 1627, 1625],
       2015: [1632, 1614, 1608, 1629], 2016: [1615, 1622, 1643, 1645], 2017: [1650, 1664, 1670, 1667],
       2018: [1671, 1699, 1733, 1703], 2019: [1728, 1746, 1746, 1769], 2020: [1770, 1753, 1765, 1795],
       2021: [1821, 1825, 1886, 1886], 2022: [1948, 1966, 2037, 2077], 2023: [2144, 2146, 2106, 2162],
@@ -459,12 +501,14 @@ const INDICES = {
   },
   cache: null,
   async load() { INDICES.cache = await DB.all('indices'); return INDICES.cache; },
-  async seedIfEmpty() {
-    const rows = await DB.all('indices'); if (rows.length) return false;
-    const out = [];
-    for (const [type, years] of Object.entries(INDICES.PREFILL)) for (const [y, vals] of Object.entries(years)) vals.forEach((v, i) => { if (v !== null) out.push({ id: `${type}:${y}T${i + 1}`, type, periode: `${y}T${i + 1}`, valeur: v, verifie: false, source: 'pré-rempli (à vérifier)' }); });
-    await DB.putMany('indices', out); INDICES.cache = out; return true;
+  // Ajoute les valeurs pré-remplies absentes de la table (sans toucher aux valeurs existantes). Renvoie le nombre ajouté.
+  async seedMissing() {
+    const rows = await DB.all('indices'); const have = new Set(rows.map(r => r.id)); const out = [];
+    for (const [type, years] of Object.entries(INDICES.PREFILL)) for (const [y, vals] of Object.entries(years)) vals.forEach((v, i) => { const id = `${type}:${y}T${i + 1}`; if (v !== null && !have.has(id)) out.push({ id, type, periode: `${y}T${i + 1}`, valeur: v, verifie: false, source: 'pré-rempli (à vérifier)' }); });
+    if (out.length) await DB.putMany('indices', out); INDICES.cache = [...rows, ...out]; return out.length;
   },
+  // Modèle de fichier CSV attendu pour l'import
+  template() { return ['type;periode;valeur', 'ILAT;2025T1;135,70', 'ILC;2025T1;136,04', 'ICC;2025T1;2193', '# type = ILC, ILAT ou ICC ; periode = AAAATn (ex. 2025T1) ; valeur avec virgule ou point'].join('\r\n'); },
   get(type, periode) { return (INDICES.cache || []).find(r => r.type === type && r.periode === periode) || null; },
   async set(type, periode, valeur, verifie = true, source = 'saisie manuelle') {
     const row = { id: `${type}:${periode}`, type, periode, valeur: +valeur, verifie: !!verifie, source };
@@ -645,6 +689,8 @@ const EXTRACT = {
     { key: 'indexBaseValeur', label: 'Indice de base (valeur)', type: 'num', rules: [
       { re: /trimestre\s*(?:de\s*)?(?:l'annee\s*)?\d{4}\s*,?\s*soit\s*NUM/, g: 1 }, { re: /indice de base[^\n]{0,200}?soit\s*NUM/, g: 1 },
       { re: /indice de base[^\n]{0,120}?(?:de|a|egal a)\s*NUM/, g: 1, conf: 'doute' }] },
+    { key: 'indexRevisionPeriode', label: 'Indice de révision (trimestre)', type: 'trim', rules: [
+      { re: /indice de (?:revision|comparaison|reference)[^\n]{0,120}?(\d)(?:er|eme|e)?\s*trimestre\s*(?:de\s*)?(?:l'annee\s*)?(\d{4})/, fn: m => `${m[2]}T${m[1]}` }] },
     { key: 'indexPremiereDate', label: 'Première indexation', type: 'date', rules: [
       { re: /pour la premiere fois le\s+DATE/, g: 1 }, { re: /premiere (?:indexation|revision)[^\n]{0,80}?le\s+DATE/, g: 1 },
       { re: /indexe[^\n]{0,120}?a compter du\s+DATE/, g: 1, conf: 'doute' }] },
@@ -767,6 +813,7 @@ const EXTRACT = {
     if (!g('terme') && g('periodicite')) out.terme = { value: 'echoir', conf: 'doute', deduit: true };
     if (g('dateEffet') && !g('dateFin') && g('dureeMois')) out.dateFin = { value: U.addDays(U.addMonths(g('dateEffet'), g('dureeMois')), -1), conf: 'doute', deduit: true };
     if (g('dateEffet') && g('dateFin') && !g('dureeMois')) { const d = U.fromISO(g('dateEffet')), e = U.fromISO(g('dateFin')); const m = (e.getFullYear() - d.getFullYear()) * 12 + e.getMonth() - d.getMonth() + (e.getDate() >= d.getDate() - 1 ? 1 : 0); out.dureeMois = { value: m, conf: 'doute', deduit: true }; }
+    if (!g('indexRevisionPeriode') && g('indexBasePeriode')) out.indexRevisionPeriode = { value: U.trimAdd(g('indexBasePeriode'), 4), conf: 'doute', deduit: true };
     if (!g('indexPremiereDate') && g('dateEffet')) out.indexPremiereDate = { value: U.addMonths(g('dateEffet'), 12), conf: 'doute', deduit: true };
     if (g('chargesMontant') && typeof g('chargesMontant') === 'object') { const s = g('surfaceTotale'); out.chargesMontant = { ...out.chargesMontant, value: s ? U.round2(g('chargesMontant').perM2 * s) : null, conf: 'doute', note: `${g('chargesMontant').perM2} €/m²` }; }
     if (g('depotMontant') && g('loyerAnnuelHT') && !g('depotMois')) { const r = g('depotMontant') / (g('loyerAnnuelHT') / 12); if (Math.abs(r - Math.round(r)) < 0.05) out.depotMois = { value: Math.round(r), conf: 'doute', deduit: true }; }
@@ -779,19 +826,39 @@ const EXTRACT = {
     if (g('type') === 'derogatoire' && g('dureeMois') > 36) anomalies.push('Bail dérogatoire de plus de 36 mois');
     out._anomalies = anomalies;
   },
-  // Lignes de loyer : tente de lire la décomposition "- 204.000 € ... lot B1 / - 2.700 € ... parkings"
+  // Lignes de loyer : lit la décomposition "- 204.000 € ... lot B1 / - 2.700 € ... parkings"
   rentLines(pages, total) {
     const ctx = EXTRACT.buildText(pages); const lines = [];
     const re = new RegExp('(?:^|\\n)\\s*[-•]\\s*' + EXTRACT.NUM + '\\s*(?:€|euros?|eur)?[^\\n]{0,20}?(?:au titre d[eu]s?|pour|correspondant a[ux]*)?\\s*([^\\n]{3,80})', 'g');
     let m, i = 0; const start = ctx.norm.search(/se decomposant comme suit|decompose comme suit|ventile comme suit/); const zone = start >= 0 ? ctx.norm.slice(start, start + 800) : '';
     while (zone && (m = re.exec(zone)) && i < 8) {
       const v = U.parseNum(m[1]); if (!v) continue; i++; const libN = m[2].trim(); const gi = start + m.index + m[0].lastIndexOf(m[2]); const lib = ctx.orig.slice(gi, gi + m[2].length).trim().replace(/^(au titre d[eu]s?|pour|correspondant aux?)\s+/i, '');
-      lines.push({ libelle: lib, type: /parking|stationnement/.test(libN) ? 'parking' : /entrepot|activite|stockage/.test(libN) ? 'entrepot' : 'bureau', montantAnnuelHT: v });
+      const lotM = /\blots?\s+(?:n°\s*)?([a-z]?\d{1,4}[a-z]?(?:\s*(?:,|et|&)\s*[a-z]?\d{1,4}[a-z]?)*)/.exec(libN);
+      lines.push({ libelle: lib, lot: lotM ? lotM[1].toUpperCase().replace(/\s+/g, ' ') : '', type: /parking|stationnement/.test(libN) ? 'parking' : /entrepot|activite|stockage/.test(libN) ? 'entrepot' : 'bureau', montantAnnuelHT: v });
     }
     const sum = lines.reduce((s, l) => s + l.montantAnnuelHT, 0);
     if (lines.length && total && Math.abs(sum - total) > 1) lines.forEach(l => l.doute = true);
-    if (!lines.length && total) lines.push({ libelle: 'Loyer principal', type: 'bureau', montantAnnuelHT: total });
     return lines;
+  },
+  // Tableau des lots : fusionne lignes de loyer, surfaces par usage et numéros de lot
+  lots(pages, total, lotsTexte) {
+    const lines = EXTRACT.rentLines(pages, total); const surfaces = EXTRACT.surfaces(pages);
+    const lotNums = String(lotsTexte || '').toUpperCase().split(/\s*(?:,|ET|&)\s*/).map(x => x.trim()).filter(Boolean);
+    const typeOf = u => /bureau/.test(u) ? 'bureau' : /parking|stationnement/.test(u) ? 'parking' : 'entrepot';
+    const out = [];
+    if (lines.length) {
+      for (const l of lines) {
+        const sf = surfaces.find(sx => !sx.used && typeOf(sx.usage) === l.type); if (sf) sf.used = true;
+        out.push({ lot: l.lot || (l.type === 'parking' ? '' : lotNums[0] || ''), type: l.type, surface: sf ? sf.surface : null, montantAnnuelHT: l.montantAnnuelHT, unitCode: '', libelle: l.libelle, doute: l.doute });
+      }
+    } else if (lotNums.length) {
+      lotNums.forEach((n, i) => { const sf = surfaces[i]; out.push({ lot: n, type: sf ? typeOf(sf.usage) : 'bureau', surface: sf ? sf.surface : null, montantAnnuelHT: null, unitCode: '' }); });
+    } else if (surfaces.length) surfaces.forEach(sx => out.push({ lot: '', type: typeOf(sx.usage), surface: sx.surface, montantAnnuelHT: null, unitCode: '' }));
+    else if (total) out.push({ lot: '', type: 'bureau', surface: null, montantAnnuelHT: total, unitCode: '' });
+    // Surfaces restantes non rattachées -> lots supplémentaires sans montant
+    for (const sx of surfaces) if (!sx.used && !out.some(o => o.surface === sx.surface)) out.push({ lot: '', type: typeOf(sx.usage), surface: sx.surface, montantAnnuelHT: null, unitCode: '' });
+    if (total && out.some(o => o.montantAnnuelHT === null)) CALC.repartir({ lots: out }, total);
+    return out;
   },
   // Surfaces par usage : cherche des paires "NNN m²" avec libellé proche
   surfaces(pages) {
@@ -813,7 +880,19 @@ const CALC = {
   NB: { mensuel: 12, trimestriel: 4, semestriel: 2, annuel: 1 },
   MONTHS: { mensuel: 1, trimestriel: 3, semestriel: 6, annuel: 12 },
   code(type) { return (CALC.codes || CALC.DEFAULT_CODES)[type] || ''; },
-  loyerAnnuel(bail) { return (bail.lignes || []).reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0) || (+bail.loyerAnnuelHT || 0); },
+  loyerAnnuel(bail) { const lots = Array.isArray(bail.lots) ? bail.lots : []; return lots.reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0) || (+bail.loyerAnnuelHT || 0); },
+  // Répartit le loyer total sur les lots au prorata des surfaces ; les parkings (ou lots marqués fixes) gardent leur montant
+  repartir(bail, total) {
+    const lots = Array.isArray(bail.lots) ? bail.lots : []; if (!lots.length) return;
+    const fixes = lots.filter(l => l.type === 'parking' || l.fixe), vars = lots.filter(l => !(l.type === 'parking' || l.fixe));
+    const reste = Math.max(0, (+total || 0) - fixes.reduce((s, l) => s + (+l.montantAnnuelHT || 0), 0));
+    const surf = vars.reduce((s, l) => s + (+l.surface || 0), 0);
+    if (!vars.length) return;
+    let cum = 0; vars.forEach((l, i) => { const part = surf > 0 ? (+l.surface || 0) / surf : 1 / vars.length; l.montantAnnuelHT = i === vars.length - 1 ? U.round2(reste - cum) : U.round2(reste * part); cum += l.montantAnnuelHT; });
+  },
+  // Libellés Yardi : "Actif (fr101901)" et "PRENEUR Lot B1 (A00OF030-t0000859)"
+  yardiProperty(bail) { const c = bail.yardi && bail.yardi.propertyCode; return `${bail.actif || ''}${c ? ` (${c})` : ''}`.trim(); },
+  yardiTenant(bail, lot) { const t = (bail.yardi && bail.yardi.tenantCodes || [])[0] || ''; const u = lot && lot.unitCode || ''; const ids = [u, t].filter(Boolean).join('-'); return `${bail.preneur || ''}${lot && lot.lot ? ` Lot ${lot.lot}` : ''}${ids ? ` (${ids})` : ''}`.trim(); },
   // Palier applicable à une date (loyer annuel HT de base, hors indexation)
   loyerBaseAt(bail, date, montantLigne) {
     const p = (bail.paliers || []).find(p => p.du <= date && (!p.au || date <= p.au));
@@ -828,9 +907,10 @@ const CALC = {
     if (!prev && baseRow) prev = baseRow.valeur;
     if (!prev) { res.missing.push(ix.basePeriode); return res; }
     if (baseRow && !baseRow.verifie && !ix.baseValeur) res.unverified.push(ix.basePeriode);
+    const rev0 = U.parseTrim(ix.revisionPeriode) ? ix.revisionPeriode : U.trimAdd(ix.basePeriode, 4); // trimestre de la première révision
     let k = 1; let anniv = ix.premiereDate;
     while (anniv <= date && k < 60) {
-      const periode = U.trimAdd(ix.basePeriode, 4 * k); const row = INDICES.get(ix.type, periode);
+      const periode = U.trimAdd(rev0, 4 * (k - 1)); const row = INDICES.get(ix.type, periode);
       if (!row) { res.missing.push(periode); break; }
       if (!row.verifie) res.unverified.push(periode);
       let c = row.valeur / prev;
@@ -886,18 +966,21 @@ const CALC = {
     return (U.daysBetween(a, b) + 1) / (U.daysBetween(p.du, p.au) + 1); // part de la période en franchise
   },
   // Quittancement d'un bail sur [from, to] : lignes par période
-  quittance(bail, from, to) {
+  quittance(bail, from, to, { loyersSeuls = false } = {}) {
     const tva = bail.tva && bail.tva.option === false ? 0 : (bail.tva && bail.tva.taux != null ? +bail.tva.taux : 20);
     const mode = bail.prorata || 'jours'; const lignes = []; const warn = new Set();
     const nb = CALC.NB[bail.periodicite || 'trimestriel'];
     for (const p of CALC.splitAtAnniversaries(bail, CALC.periodes(bail, from, to))) {
       const pr = CALC.prorata(p, mode); const fr = CALC.inFranchise(bail, p);
       const ix = CALC.indexCoef(bail, p.du); ix.missing.forEach(m => warn.add(`Indice ${bail.index.type} ${m} manquant`)); ix.unverified.forEach(m => warn.add(`Indice ${bail.index.type} ${m} non vérifié`));
-      const push = (type, libelle, ht, extra = {}) => { ht = U.round2(ht); const t = extra.tva === 0 ? 0 : tva; const tv = U.round2(ht * t / 100); lignes.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, actif: bail.actif, du: p.du, au: p.au, periode: p.du.slice(0, 7), type, chargeCode: CALC.code(type), libelle, ht, tauxTva: t, tva: tv, ttc: U.round2(ht + tv), coef: ix.coef, prorata: pr, franchise: fr, ...extra }); };
-      for (const l of (bail.lignes && bail.lignes.length ? bail.lignes : [{ libelle: 'Loyer', type: 'bureau', montantAnnuelHT: bail.loyerAnnuelHT }])) {
+      const tenantCode = (bail.yardi && bail.yardi.tenantCodes || []).join(', '), propertyCode = bail.yardi && bail.yardi.propertyCode || '';
+      const push = (type, libelle, ht, extra = {}) => { ht = U.round2(ht); const t = extra.tva === 0 ? 0 : tva; const tv = U.round2(ht * t / 100); lignes.push({ bailId: bail.id, ref: bail.ref, preneur: bail.preneur, tenantCode, actif: bail.actif, propertyCode, yardiProperty: CALC.yardiProperty(bail), yardiTenant: CALC.yardiTenant(bail, extra.lotObj), lot: extra.lotObj ? extra.lotObj.lot : '', unitCode: extra.lotObj ? extra.lotObj.unitCode || '' : '', du: p.du, au: p.au, periode: p.du.slice(0, 7), type, chargeCode: CALC.code(type), libelle, ht, tauxTva: t, tva: tv, ttc: U.round2(ht + tv), coef: ix.coef, prorata: pr, franchise: fr, base: extra.base, note: extra.note }); };
+      const lots = Array.isArray(bail.lots) && bail.lots.length ? bail.lots : [{ lot: bail.lotsTexte || '', type: 'bureau', montantAnnuelHT: bail.loyerAnnuelHT }];
+      for (const l of lots) {
         const base = CALC.loyerBaseAt(bail, p.du, +l.montantAnnuelHT || 0);
-        push(l.type || 'bureau', l.libelle || 'Loyer', base / nb * ix.coef * pr * (1 - fr), { base: base / nb });
+        push(l.type || 'bureau', `Loyer${l.lot ? ' lot ' + l.lot : ''}`, base / nb * ix.coef * pr * (1 - fr), { base: base / nb, lotObj: l });
       }
+      if (loyersSeuls) continue;
       const ch = bail.charges || {};
       if (ch.montantAnnuelHT) { const nbc = CALC.NB[ch.periodicite || bail.periodicite || 'trimestriel']; if (nbc === nb) push('charges', ch.mode === 'forfait' ? 'Forfait charges' : 'Provision charges', ch.montantAnnuelHT / nb * pr); else push('charges', 'Charges (périodicité différente)', ch.montantAnnuelHT / nb * pr, { note: `charges ${ch.periodicite}` }); }
       if (ch.taxeFonciereMontant) push('taxeFonciere', 'Taxe foncière', ch.taxeFonciereMontant / nb * pr, { tva: 0 });
@@ -997,22 +1080,20 @@ const EXCEL = {
   flatBail(b) {
     const ix = b.index || {}, ch = b.charges || {}, dp = b.depot || {}, tv = b.tva || {};
     return {
-      'Référence': b.ref, 'Statut': b.statut, 'Type': b.type, 'Actif': b.actif, 'Bâtiment': b.batiment, 'Adresse': b.adresse, 'Lots': b.lots, 'Surface totale m²': b.surfaceTotale,
-      'Parkings': b.parkingsNombre, 'N° parkings': b.parkingsNumeros, 'Bailleur': b.bailleur, 'Preneur': b.preneur, 'Enseigne': b.enseigne, 'SIREN': b.siren, 'Email facturation': b.emailFacturation,
+      'Référence': b.ref, 'Statut': b.statut, 'Type': b.type, 'Actif': b.actif, 'Bâtiment': b.batiment, 'Adresse': b.adresse, 'Surface totale m²': b.surfaceTotale,
+      'Lots': (Array.isArray(b.lots) ? b.lots.map(l => l.lot).filter(Boolean).join(', ') : b.lotsTexte), 'Parkings': b.parkingsNombre, 'N° parkings': b.parkingsNumeros, 'Bailleur': b.bailleur, 'Preneur': b.preneur, 'Enseigne': b.enseigne, 'SIREN': b.siren, 'Email facturation': b.emailFacturation,
       'Date signature': b.dateSignature, "Date d'effet": b.dateEffet, 'Date fin': b.dateFin, 'Durée (mois)': b.dureeMois, 'Loyer annuel HT': CALC.loyerAnnuel(b), 'Périodicité': b.periodicite, 'Terme': b.terme, 'Prorata': b.prorata,
-      'Franchise (mois)': b.franchiseMois, 'Indice': ix.type, 'Indice base période': ix.basePeriode, 'Indice base valeur': ix.baseValeur, 'Première indexation': ix.premiereDate, 'Plafond %': ix.plafond,
+      'Franchise (mois)': b.franchiseMois, 'Indice': ix.type, 'Indice base période': ix.basePeriode, 'Indice base valeur': ix.baseValeur, 'Indice révision période': ix.revisionPeriode, 'Première indexation': ix.premiereDate, 'Plafond %': ix.plafond,
       'Dépôt €': dp.montant, 'Dépôt mois': dp.mois, 'Charges mode': ch.mode, 'Charges annuelles HT': ch.montantAnnuelHT, 'Charges périodicité': ch.periodicite, 'Taxe foncière refacturée': ch.taxeFonciere ? 'oui' : 'non', 'Taxe foncière €': ch.taxeFonciereMontant,
-      'TVA option': tv.option === false ? 'non' : 'oui', 'TVA taux': tv.taux ?? 20, 'Destination': b.destination, 'Résiliation anticipée': b.resiliation, 'Codes locataire Yardi': (b.yardi && b.yardi.tenantCodes || []).join(', '), 'Codes lot Yardi': (b.yardi && b.yardi.unitCodes || []).join(', '),
+      'TVA option': tv.option === false ? 'non' : 'oui', 'TVA taux': tv.taux ?? 20, 'Destination': b.destination, 'Résiliation anticipée': b.resiliation, 'Tenant id Yardi': (b.yardi && b.yardi.tenantCodes || []).join(', '), 'N° actif Yardi': b.yardi && b.yardi.propertyCode || '',
       'Anomalies': (b.anomalies || []).join(' ; '), 'Commentaires': b.commentaires, 'Fichier PDF': b.pdfName, 'OCR': b.ocr ? 'oui' : 'non', 'Mis à jour': b.updated,
     };
   },
   async exportBase(baux, indices, quittance, rapprochement) {
     const wb = XLSX.utils.book_new();
     EXCEL.sheet(wb, 'Baux', baux.map(EXCEL.flatBail));
-    const lignes = baux.flatMap(b => (b.lignes || []).map(l => ({ 'Référence': b.ref, 'Preneur': b.preneur, 'Libellé': l.libelle, 'Type': l.type, 'Code Yardi': CALC.code(l.type), 'Montant annuel HT': l.montantAnnuelHT, 'Surface m²': l.surface })));
-    if (lignes.length) EXCEL.sheet(wb, 'Lignes de loyer', lignes);
-    const surfaces = baux.flatMap(b => (b.surfaces || []).map(s => ({ 'Référence': b.ref, 'Preneur': b.preneur, 'Usage': s.usage, 'Surface m²': s.surface })));
-    if (surfaces.length) EXCEL.sheet(wb, 'Surfaces', surfaces);
+    const lots = baux.flatMap(b => (Array.isArray(b.lots) ? b.lots : []).map(l => ({ 'Référence': b.ref, 'Preneur': b.preneur, 'Actif': b.actif, 'N° lot': l.lot, 'Type': l.type, 'Surface m²': l.surface, 'Loyer annuel HT': l.montantAnnuelHT, 'Code lot Yardi': l.unitCode, 'Code charge': CALC.code(l.type) })));
+    if (lots.length) EXCEL.sheet(wb, 'Lots', lots);
     const paliers = baux.flatMap(b => (b.paliers || []).map(p => ({ 'Référence': b.ref, 'Du': p.du, 'Au': p.au, 'Loyer annuel HT': p.montantAnnuelHT })));
     if (paliers.length) EXCEL.sheet(wb, 'Paliers', paliers);
     const avenants = baux.flatMap(b => (b.avenants || []).map(a => ({ 'Référence': b.ref, 'Date': a.date, 'Objet': a.objet, 'Détail': a.texte })));
@@ -1022,8 +1103,14 @@ const EXCEL = {
     if (rapprochement && rapprochement.length) EXCEL.sheet(wb, 'Rapprochement Yardi', rapprochement.map(EXCEL.flatR));
     XLSX.writeFile(wb, `baux_${U.toISO(new Date())}.xlsx`);
   },
-  flatQ(l) { return { 'Référence': l.ref, 'Preneur': l.preneur, 'Actif': l.actif, 'Du': l.du, 'Au': l.au, 'Type': l.type, 'Code Yardi': l.chargeCode, 'Libellé': l.libelle, 'Base période HT': l.base !== undefined ? U.round2(l.base) : '', 'Coef. indexation': U.round2(l.coef * 10000) / 10000, 'Prorata': U.round2(l.prorata * 10000) / 10000, 'Franchise': l.franchise ? U.round2(l.franchise * 100) + ' %' : '', 'HT': l.ht, 'Taux TVA': l.tauxTva, 'TVA': l.tva, 'TTC': l.ttc, 'Note': l.note || '' }; },
+  flatQ(l) { return { 'Référence': l.ref, 'Preneur': l.preneur, 'Tenant id': l.tenantCode, 'Actif': l.actif, 'N° actif': l.propertyCode, 'Property (Yardi)': l.yardiProperty, 'Tenant (Yardi)': l.yardiTenant, 'N° lot': l.lot, 'Code lot': l.unitCode, 'Du': l.du, 'Au': l.au, 'Type': l.type, 'Code charge': l.chargeCode, 'Libellé': l.libelle, 'Base période HT': l.base !== undefined ? U.round2(l.base) : '', 'Coef. indexation': U.round2(l.coef * 10000) / 10000, 'Prorata': U.round2(l.prorata * 10000) / 10000, 'Franchise': l.franchise ? U.round2(l.franchise * 100) + ' %' : '', 'HT': l.ht, 'Taux TVA': l.tauxTva, 'TVA': l.tva, 'TTC': l.ttc, 'Note': l.note || '' }; },
   flatR(r) { return { 'Référence': r.ref, 'Preneur': r.preneur, 'Actif': r.actif, 'Codes Yardi': r.tenantCodes, 'Code charge': r.chargeCode, 'Période': r.mois, 'Yardi HT': r.yardi, 'Calcul HT': r.calcul, 'Écart': r.ecart, 'Statut': r.statut, 'Avertissements': r.warnings || r.note || '' }; },
+  // Modèle d'export Yardi attendu pour l'import
+  yardiTemplate() {
+    const wb = XLSX.utils.book_new();
+    const rows = [{ 'Property': 'Nom du parc (fr101901)', 'Tenant': 'NOM LOCATAIRE Lot B1 (A00OF030-t0000859)', 'Unit': 'A00OF030', 'Description': 'Rent Office', 'Charge Code': 'un_ro_t', 'Currency': 'eur', 'Net': '1 456,32', 'VAT': '291,26', 'Tax 2': '0,00', 'Total Amount': '1 747,58', 'Charge From': '01/01/2027', 'Charge To': '31/03/2027', 'Last Period': '', 'Variance': '' }];
+    EXCEL.sheet(wb, 'Export Yardi', rows); XLSX.writeFile(wb, 'modele_export_yardi.xlsx');
+  },
   exportQuittance(lignes) { const wb = XLSX.utils.book_new(); EXCEL.sheet(wb, 'Quittancement', lignes.map(EXCEL.flatQ)); XLSX.writeFile(wb, `quittancement_${U.toISO(new Date())}.xlsx`); },
   exportRapprochement(rows) { const wb = XLSX.utils.book_new(); EXCEL.sheet(wb, 'Rapprochement', rows.map(EXCEL.flatR)); const corr = rows.filter(r => r.statut !== 'OK'); if (corr.length) EXCEL.sheet(wb, 'Corrections à faire', corr.map(EXCEL.flatR)); XLSX.writeFile(wb, `rapprochement_yardi_${U.toISO(new Date())}.xlsx`); },
 };
@@ -1054,33 +1141,33 @@ const UI = {
   // Définition du formulaire bail : clé, libellé, type, chemin dans l'objet
   FORM: [
     { group: 'Identification' },
-    { key: 'ref', label: 'Référence', type: 'text' }, { key: 'type', label: 'Type de bail', type: 'enum', opts: ['commercial', 'derogatoire', 'precaire', 'professionnel', 'civil', 'autre'], labels: { commercial: 'Commercial 3/6/9', derogatoire: 'Dérogatoire', precaire: 'Précaire', professionnel: 'Professionnel', civil: 'Civil', autre: 'Autre' } },
-    { key: 'statut', label: 'Statut', type: 'enum', opts: ['extrait', 'a_verifier', 'valide', 'anomalie'], labels: STATUT_LABEL },
+    { key: 'ref', ess: true, label: 'Référence', type: 'text' }, { key: 'type', label: 'Type de bail', type: 'enum', opts: ['commercial', 'derogatoire', 'precaire', 'professionnel', 'civil', 'autre'], labels: { commercial: 'Commercial 3/6/9', derogatoire: 'Dérogatoire', precaire: 'Précaire', professionnel: 'Professionnel', civil: 'Civil', autre: 'Autre' } },
+    { key: 'statut', ess: true, label: 'Statut', type: 'enum', opts: ['extrait', 'a_verifier', 'valide', 'anomalie'], labels: STATUT_LABEL },
     { key: 'bailleur', label: 'Bailleur', type: 'text' }, { key: 'gestionnaire', label: 'Gestionnaire', type: 'text' },
-    { key: 'preneur', label: 'Preneur', type: 'text' }, { key: 'enseigne', label: 'Enseigne', type: 'text' }, { key: 'siren', label: 'SIREN preneur', type: 'text' }, { key: 'emailFacturation', label: 'Email facturation', type: 'text' },
+    { key: 'preneur', ess: true, label: 'Preneur', type: 'text' }, { key: 'enseigne', label: 'Enseigne', type: 'text' }, { key: 'siren', label: 'SIREN preneur', type: 'text' }, { key: 'emailFacturation', label: 'Email facturation', type: 'text' },
     { group: 'Lieux loués' },
-    { key: 'actif', label: 'Actif / immeuble', type: 'text', list: 'actifs' }, { key: 'adresse', label: 'Adresse', type: 'text' }, { key: 'batiment', label: 'Bâtiment', type: 'text' }, { key: 'lots', label: 'Lot(s)', type: 'text' },
-    { key: 'surfaceTotale', label: 'Surface totale (m²)', type: 'num' }, { key: 'parkingsNombre', label: 'Parkings (nombre)', type: 'int' }, { key: 'parkingsNumeros', label: 'Parkings (n°)', type: 'text' },
+    { key: 'actif', ess: true, label: 'Actif / immeuble', type: 'text', list: 'actifs' }, { key: 'adresse', label: 'Adresse', type: 'text' }, { key: 'batiment', label: 'Bâtiment', type: 'text' }, { key: 'lots', label: 'Lot(s) (texte du bail)', type: 'text', path: 'lotsTexte' },
+    { key: 'surfaceTotale', ess: true, label: 'Surface totale (m²)', type: 'num' }, { key: 'parkingsNombre', ess: true, label: 'Parkings (nombre)', type: 'int' }, { key: 'parkingsNumeros', ess: true, label: 'Parkings (n°)', type: 'text' },
     { key: 'destination', label: 'Destination', type: 'textarea' }, { key: 'stockageICPE', label: 'Stockage combustible max', type: 'text' },
     { group: 'Durée' },
-    { key: 'dateSignature', label: 'Date de signature', type: 'date' }, { key: 'dateEffet', label: "Date d'effet", type: 'date' }, { key: 'dateFin', label: "Date d'expiration", type: 'date' }, { key: 'dureeMois', label: 'Durée (mois)', type: 'int' },
+    { key: 'dateSignature', ess: true, label: 'Date de signature', type: 'date' }, { key: 'dateEffet', ess: true, label: "Date d'effet", type: 'date' }, { key: 'dateFin', ess: true, label: "Date d'expiration", type: 'date' }, { key: 'dureeMois', ess: true, label: 'Durée (mois)', type: 'int' },
     { key: 'resiliation', label: 'Résiliation anticipée', type: 'textarea' },
     { group: 'Loyer et facturation' },
-    { key: 'loyerAnnuelHT', label: 'Loyer annuel HT total (€)', type: 'num', readonly: true, hint: 'somme des lignes de loyer' },
-    { key: 'periodicite', label: 'Périodicité', type: 'enum', opts: ['mensuel', 'trimestriel', 'semestriel', 'annuel'] }, { key: 'terme', label: 'Terme', type: 'enum', opts: ['echoir', 'echu'], labels: { echoir: 'À échoir (d\'avance)', echu: 'Échu' } },
-    { key: 'prorata', label: 'Prorata', type: 'enum', opts: ['jours', '30/360'], labels: { jours: 'Jours réels', '30/360': '30/360' } }, { key: 'franchiseMois', label: 'Franchise (mois)', type: 'int' }, { key: 'franchiseDebut', label: 'Début franchise', type: 'date', hint: 'vide = date d\'effet' },
+    { key: 'loyerAnnuelHT', ess: true, label: 'Loyer annuel HT total (€)', type: 'num', hint: 'réparti sur les lots au prorata des m²' },
+    { key: 'periodicite', ess: true, label: 'Périodicité', type: 'enum', opts: ['mensuel', 'trimestriel', 'semestriel', 'annuel'] }, { key: 'terme', label: 'Terme', type: 'enum', opts: ['echoir', 'echu'], labels: { echoir: 'À échoir (d\'avance)', echu: 'Échu' } },
+    { key: 'prorata', label: 'Prorata', type: 'enum', opts: ['jours', '30/360'], labels: { jours: 'Jours réels', '30/360': '30/360' } }, { key: 'franchiseMois', ess: true, label: 'Franchise (mois)', type: 'int' }, { key: 'franchiseDebut', ess: true, label: 'Début franchise', type: 'date', hint: 'vide = date d\'effet' },
     { key: 'tvaOption', label: 'Option TVA', type: 'bool', path: 'tva.option' }, { key: 'tvaTaux', label: 'Taux TVA (%)', type: 'num', path: 'tva.taux' },
     { group: 'Indexation' },
-    { key: 'indexType', label: 'Indice', type: 'enum', opts: ['ILAT', 'ILC', 'ICC', 'IRL', 'aucun'], path: 'index.type' }, { key: 'indexBasePeriode', label: 'Indice de base (trim.)', type: 'text', path: 'index.basePeriode', hint: 'ex. 2026T1' },
-    { key: 'indexBaseValeur', label: 'Indice de base (valeur)', type: 'num', path: 'index.baseValeur' }, { key: 'indexPremiereDate', label: 'Première indexation', type: 'date', path: 'index.premiereDate' },
-    { key: 'indexPlafond', label: 'Plafond (%)', type: 'num', path: 'index.plafond' }, { key: 'indexPlancher', label: 'Pas de baisse', type: 'bool', path: 'index.plancher' }, { key: 'indexCondition', label: 'Condition', type: 'text', path: 'index.condition' },
+    { key: 'indexType', ess: true, label: 'Indice', type: 'enum', opts: ['ILAT', 'ILC', 'ICC', 'IRL', 'aucun'], path: 'index.type' }, { key: 'indexBasePeriode', ess: true, label: 'Indice de base (trim.)', type: 'text', path: 'index.basePeriode', hint: 'ex. 2026T1' },
+    { key: 'indexBaseValeur', ess: true, label: 'Indice de base (valeur)', type: 'num', path: 'index.baseValeur' }, { key: 'indexPremiereDate', ess: true, label: 'Première indexation', type: 'date', path: 'index.premiereDate' },
+    { key: 'indexRevisionPeriode', ess: true, label: 'Indice de révision (trim.)', type: 'text', path: 'index.revisionPeriode', hint: 'vide = même trimestre, année suivante' }, { key: 'indexPlafond', label: 'Plafond (%)', type: 'num', path: 'index.plafond' }, { key: 'indexPlancher', label: 'Pas de baisse', type: 'bool', path: 'index.plancher' }, { key: 'indexCondition', label: 'Condition', type: 'text', path: 'index.condition' },
     { group: 'Dépôt de garantie' },
-    { key: 'depotMontant', label: 'Montant (€)', type: 'num', path: 'depot.montant' }, { key: 'depotMois', label: 'Mois de loyer', type: 'int', path: 'depot.mois' }, { key: 'depotReajust', label: 'Réajusté chaque année', type: 'bool', path: 'depot.reajustement' },
+    { key: 'depotMontant', ess: true, label: 'Montant (€)', type: 'num', path: 'depot.montant' }, { key: 'depotMois', label: 'Mois de loyer', type: 'int', path: 'depot.mois' }, { key: 'depotReajust', label: 'Réajusté chaque année', type: 'bool', path: 'depot.reajustement' },
     { group: 'Charges et taxes' },
     { key: 'chargesMode', label: 'Mode', type: 'enum', opts: ['forfait', 'provision'], path: 'charges.mode' }, { key: 'chargesMontant', label: 'Montant annuel HT (€)', type: 'num', path: 'charges.montantAnnuelHT' }, { key: 'chargesPeriodicite', label: 'Périodicité', type: 'enum', opts: ['mensuel', 'trimestriel', 'semestriel', 'annuel'], path: 'charges.periodicite' },
     { key: 'taxeFonciere', label: 'Taxe foncière refacturée', type: 'bool', path: 'charges.taxeFonciere' }, { key: 'taxeFonciereMontant', label: 'Taxe foncière annuelle (€)', type: 'num', path: 'charges.taxeFonciereMontant' }, { key: 'teom', label: 'TEOM refacturée', type: 'bool', path: 'charges.teom' }, { key: 'honorairesInclus', label: 'Honoraires gestion inclus', type: 'bool', path: 'charges.honorairesInclus' },
     { group: 'Yardi' },
-    { key: 'yardiTenant', label: 'Codes locataire (t…)', type: 'text', path: 'yardi.tenantCodesText', hint: 'séparés par des virgules' }, { key: 'yardiUnit', label: 'Codes lot', type: 'text', path: 'yardi.unitCodesText' },
+    { key: 'yardiTenant', ess: true, label: 'Tenant id Yardi (t…)', type: 'text', path: 'yardi.tenantCodesText', hint: 'ex. t0000859 ; plusieurs : virgules' }, { key: 'yardiProperty', ess: true, label: 'N° actif Yardi', type: 'text', path: 'yardi.propertyCode', hint: 'ex. fr101901' },
     { group: 'Suivi' },
     { key: 'commentaires', label: 'Commentaires', type: 'textarea' },
   ],
@@ -1117,8 +1204,7 @@ const UI = {
     return `<div class="sub"><div class="row" style="justify-content:space-between"><b>${title}</b><button data-subadd="${name}">+ Ajouter</button></div><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
   },
   SUB: {
-    lignes: { title: 'Lignes de loyer (annuel HT)', cols: [{ key: 'libelle', label: 'Libellé' }, { key: 'type', label: 'Type', type: 'enum', opts: ['bureau', 'entrepot', 'activite', 'parking', 'autre'] }, { key: 'surface', label: 'm²', type: 'num' }, { key: 'montantAnnuelHT', label: '€ HT/an', type: 'num' }], blank: () => ({ libelle: '', type: 'bureau', surface: null, montantAnnuelHT: null }) },
-    surfaces: { title: 'Surfaces par usage', cols: [{ key: 'usage', label: 'Usage' }, { key: 'niveau', label: 'Niveau' }, { key: 'surface', label: 'm²', type: 'num' }], blank: () => ({ usage: '', niveau: '', surface: null }) },
+    lots: { title: 'Lots (surface et loyer annuel HT)', cols: [{ key: 'lot', label: 'N° lot' }, { key: 'type', label: 'Type', type: 'enum', opts: ['bureau', 'entrepot', 'activite', 'parking', 'autre'], labels: { bureau: 'Bureau', entrepot: 'Entrepôt', activite: 'Activité', parking: 'Parking', autre: 'Autre' } }, { key: 'surface', label: 'm²', type: 'num' }, { key: 'montantAnnuelHT', label: '€ HT/an', type: 'num' }, { key: 'unitCode', label: 'Code lot Yardi' }], blank: () => ({ lot: '', type: 'bureau', surface: null, montantAnnuelHT: null, unitCode: '' }) },
     paliers: { title: 'Paliers de loyer', cols: [{ key: 'du', label: 'Du', type: 'date' }, { key: 'au', label: 'Au', type: 'date' }, { key: 'montantAnnuelHT', label: '€ HT/an', type: 'num' }], blank: () => ({ du: '', au: '', montantAnnuelHT: null }) },
     avenants: { title: 'Avenants', cols: [{ key: 'date', label: 'Date', type: 'date' }, { key: 'objet', label: 'Objet' }, { key: 'texte', label: 'Détail' }], blank: () => ({ date: '', objet: '', texte: '' }) },
   },
@@ -1129,7 +1215,7 @@ const UI = {
 'use strict';
 // ---------- Application ----------
 const APP = {
-  view: 'dashboard', baux: [], learned: {}, sel: null, doc: null, docId: null, filters: { actif: '', preneur: '', q: '' }, importing: false, quittance: null, yardiRows: [], rapp: null, sort: {},
+  view: 'dashboard', baux: [], learned: {}, layout: { list: true, form: 'normal' }, mode: 'essentiel', sel: null, doc: null, docId: null, filters: { actif: '', preneur: '', q: '' }, importing: false, quittance: null, yardiRows: [], rapp: null, sort: {},
   // ===== Démarrage / verrouillage =====
   async boot() {
     const lock = UI.$('#lock');
@@ -1156,11 +1242,12 @@ const APP = {
   onLock() { UI.$('#app').classList.add('hidden'); UI.$('#lock').classList.remove('hidden'); UI.$('#lock-step-folder').classList.add('hidden'); UI.$('#lock-step-pass').classList.remove('hidden'); UI.$('#lock-pass-msg').textContent = 'Session verrouillée. Entrez le mot de passe.'; UI.$('#pass2').classList.add('hidden'); APP.baux = []; APP.doc = null; APP.sel = null; UI.$('#view').innerHTML = ''; setTimeout(() => UI.$('#pass1').focus(), 50); },
   async start() {
     UI.$('#lock').classList.add('hidden'); UI.$('#app').classList.remove('hidden');
-    const seeded = await INDICES.seedIfEmpty(); await INDICES.load();
-    if (seeded) UI.toast('Tables d\'indices pré-remplies : à vérifier avant usage', 5000);
+    const added = await INDICES.seedMissing();
+    if (added) UI.toast(`${added} valeur(s) d'indices pré-remplies ajoutées : à vérifier avant usage`, 5000);
+    APP.layout = await DB.getSetting('layout', { list: true, form: 'normal' }); APP.mode = await DB.getSetting('mode', 'essentiel');
     APP.learned = await DB.getSetting('learned', {}); CALC.codes = await DB.getSetting('codes', null) || { ...CALC.DEFAULT_CODES };
     SESSION.delayMin = await DB.getSetting('lockDelay', 15); SESSION.touch();
-    APP.baux = await DB.all('baux');
+    APP.baux = (await DB.all('baux')).map(APP.migrate);
     UI.$$('#tabs button').forEach(b => b.onclick = () => APP.go(b.dataset.view));
     UI.$('#btn-lock').onclick = () => SESSION.lock();
     UI.$('#f-actif').onchange = e => { APP.filters.actif = e.target.value; APP.render(); };
@@ -1186,7 +1273,7 @@ const APP = {
   },
   filtered() {
     const q = U.norm(APP.filters.q);
-    return APP.baux.filter(b => (!APP.filters.actif || b.actif === APP.filters.actif) && (!APP.filters.preneur || b.preneur === APP.filters.preneur) && (!q || U.norm([b.ref, b.preneur, b.enseigne, b.actif, b.lots, b.bailleur, b.pdfName, b.commentaires].join(' ')).includes(q)))
+    return APP.baux.filter(b => (!APP.filters.actif || b.actif === APP.filters.actif) && (!APP.filters.preneur || b.preneur === APP.filters.preneur) && (!q || U.norm([b.ref, b.preneur, b.enseigne, b.actif, b.lotsTexte, ...(Array.isArray(b.lots) ? b.lots.map(l => l.lot) : []), b.bailleur, b.pdfName, b.commentaires, b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.join(' ')].join(' ')).includes(q)))
       .sort((a, b) => (a.actif || '').localeCompare(b.actif || '') || (a.preneur || '').localeCompare(b.preneur || ''));
   },
   render() { APP.refreshFilterLists(); const v = UI.$('#view'); v.innerHTML = ''; ({ dashboard: APP.vDashboard, baux: APP.vBaux, indices: APP.vIndices, quittance: APP.vQuittance, yardi: APP.vYardi, params: APP.vParams })[APP.view](v); },
@@ -1199,12 +1286,13 @@ const APP = {
     v.innerHTML = `
       <div class="cards">
         <div class="card clickable" data-st=""><div class="muted">Baux</div><div class="big">${L.length}</div></div>
-        <div class="card clickable" data-st="extrait"><div class="muted">Extraits, non vérifiés</div><div class="big" style="color:var(--accent)">${n('extrait')}</div></div>
-        <div class="card clickable" data-st="a_verifier"><div class="muted">À vérifier</div><div class="big" style="color:var(--doute)">${n('a_verifier')}</div></div>
-        <div class="card clickable" data-st="anomalie"><div class="muted">Anomalies</div><div class="big" style="color:var(--absent)">${n('anomalie')}</div></div>
-        <div class="card clickable" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')}</div></div>
-        <div class="card"><div class="muted">Loyer annuel HT (validés + autres)</div><div class="big">${U.fmtMoney(L.reduce((s, b) => s + CALC.loyerAnnuel(b), 0), 0)} €</div></div>
+        <div class="card clickable c-accent" data-st="extrait"><div class="muted">Extraits, à contrôler</div><div class="big" style="color:var(--accent)">${n('extrait')}</div></div>
+        <div class="card clickable c-doute" data-st="a_verifier"><div class="muted">À vérifier</div><div class="big" style="color:var(--doute)">${n('a_verifier')}</div></div>
+        <div class="card clickable c-absent" data-st="anomalie"><div class="muted">Anomalies</div><div class="big" style="color:var(--absent)">${n('anomalie')}</div></div>
+        <div class="card clickable c-ok" data-st="valide"><div class="muted">Validés</div><div class="big" style="color:var(--ok)">${n('valide')}</div><div class="progress ok"><div style="width:${L.length ? Math.round(n('valide') / L.length * 100) : 0}%"></div></div></div>
+        <div class="card"><div class="muted">Loyer annuel HT cumulé</div><div class="big">${U.fmtMoney(L.reduce((s, b) => s + CALC.loyerAnnuel(b), 0), 0)} €</div></div>
       </div>
+      ${L.some(b => b.statut !== 'valide') ? `<div class="row" style="margin-bottom:14px"><button id="go-next" class="primary">▶ Continuer la vérification (${L.filter(b => b.statut !== 'valide').length} restants)</button></div>` : ''}
       <div class="panel"><h2>Importer des baux (PDF)</h2>
         <div id="drop" class="dropzone">Glissez-déposez ici des fichiers PDF ou un dossier entier<br><br>
           <button id="btn-files">Choisir des fichiers…</button> <button id="btn-dir">Choisir un dossier…</button>
@@ -1213,8 +1301,9 @@ const APP = {
         <p class="muted small">Le texte est extrait avec pdf.js ; si une page ne contient pas de texte (scan), l'OCR Tesseract est lancé automatiquement. Les fichiers déjà importés (même nom et même taille) sont ignorés.</p>
       </div>
       ${missingIdx.length ? `<div class="panel anoms"><b>${missingIdx.length} bail(s) avec un indice de base absent de la table</b> : ${missingIdx.slice(0, 10).map(b => `${U.esc(b.ref || b.preneur)} (${b.index.type} ${b.index.basePeriode})`).join(', ')}${missingIdx.length > 10 ? '…' : ''}. <a href="#" id="go-indices">Compléter les indices</a></div>` : ''}
-      <div class="panel"><h2>Échéances des 6 prochains mois</h2>${UI.table([{ key: 'date', label: 'Date', render: U.fmtDate }, { key: 'libelle', label: 'Échéance' }, { key: 'preavis', label: 'Préavis avant le', render: U.fmtDate }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }], ech).html}</div>`;
+      <div class="panel"><h2>Échéances des 6 prochains mois</h2>${ech.length ? '' : '<div class="empty">Aucune échéance dans les 6 mois.</div>'}${!ech.length ? '' : UI.table([{ key: 'date', label: 'Date', render: U.fmtDate }, { key: 'libelle', label: 'Échéance' }, { key: 'preavis', label: 'Préavis avant le', render: U.fmtDate }, { key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }], ech).html}</div>`;
     UI.$$('.card[data-st]', v).forEach(c => c.onclick = () => { APP.filters.statut = c.dataset.st; APP.go('baux'); });
+    const gn = UI.$('#go-next', v); if (gn) gn.onclick = () => { APP.filters.statut = ''; const nb = L.find(b => b.statut !== 'valide'); APP.go('baux'); if (nb) APP.select(nb.id); };
     const gi = UI.$('#go-indices', v); if (gi) gi.onclick = e => { e.preventDefault(); APP.go('indices'); };
     const drop = UI.$('#drop', v);
     drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); }; drop.ondragleave = () => drop.classList.remove('over');
@@ -1256,33 +1345,57 @@ const APP = {
     const r = EXTRACT.run(pages, APP.learned); const F = r.fields; const g = k => F[k] && F[k].value;
     const refFromName = (/^(\d{2}\.\d{3}\.\d{2,3})/.exec(file.name) || [])[1] || '';
     const bail = { id: U.uid(), ref: refFromName, pdfId: U.uid(), pdfName: file.name, pdfSize: file.size, pdfPages: pages.length, ocr, created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [] };
-    const simple = ['type', 'bailleur', 'preneur', 'siren', 'emailFacturation', 'actif', 'adresse', 'batiment', 'lots', 'surfaceTotale', 'parkingsNombre', 'parkingsNumeros', 'destination', 'stockageICPE', 'dateSignature', 'dateEffet', 'dateFin', 'dureeMois', 'resiliation', 'loyerAnnuelHT', 'periodicite', 'terme', 'franchiseMois'];
-    for (const k of simple) { bail[k] = g(k) ?? null; }
-    bail.index = { type: g('indexType'), basePeriode: g('indexBasePeriode'), baseValeur: g('indexBaseValeur'), premiereDate: g('indexPremiereDate'), plafond: g('indexPlafond') };
+    const simple = ['type', 'bailleur', 'preneur', 'siren', 'emailFacturation', 'actif', 'adresse', 'batiment', 'surfaceTotale', 'parkingsNombre', 'parkingsNumeros', 'destination', 'stockageICPE', 'dateSignature', 'dateEffet', 'dateFin', 'dureeMois', 'resiliation', 'loyerAnnuelHT', 'periodicite', 'terme', 'franchiseMois'];
+    for (const k of simple) { bail[k] = g(k) ?? null; } bail.lotsTexte = g('lots') ?? null;
+    bail.index = { type: g('indexType'), basePeriode: g('indexBasePeriode'), baseValeur: g('indexBaseValeur'), revisionPeriode: g('indexRevisionPeriode'), premiereDate: g('indexPremiereDate'), plafond: g('indexPlafond') };
     bail.depot = { montant: g('depotMontant'), mois: g('depotMois') }; bail.tva = { option: g('tvaOption') ?? true, taux: 20 };
     bail.charges = { mode: g('chargesMode'), montantAnnuelHT: g('chargesMontant'), periodicite: g('chargesPeriodicite'), taxeFonciere: g('taxeFonciere') };
-    bail.prorata = 'jours'; bail.yardi = { tenantCodes: [], unitCodes: [] };
+    bail.prorata = 'jours'; bail.yardi = { tenantCodes: [], unitCodes: [], propertyCode: '' };
     for (const [k, m] of Object.entries(F)) if (k[0] !== '_') bail.fields[k] = { conf: m.conf, page: m.page, snippet: m.snippet, offset: m.offset, deduit: m.deduit, learned: m.learned, note: m.note, extracted: m.value };
-    bail.lignes = EXTRACT.rentLines(pages, bail.loyerAnnuelHT); bail.surfaces = EXTRACT.surfaces(pages); bail.paliers = []; bail.avenants = [];
+    bail.lots = EXTRACT.lots(pages, bail.loyerAnnuelHT, bail.lotsTexte); bail.paliers = []; bail.avenants = [];
+    if (!bail.surfaceTotale) { const st = bail.lots.reduce((s, l) => s + (+l.surface || 0), 0); if (st) bail.surfaceTotale = st; }
     bail.anomalies = F._anomalies || []; bail.statut = bail.anomalies.length ? 'anomalie' : 'extrait';
     if (!bail.ref) bail.ref = (bail.preneur || file.name.replace(/\.pdf$/i, '')).slice(0, 40);
     return bail;
+  },
+  // Conversion des anciens enregistrements (lignes + surfaces + lots texte) vers le tableau des lots
+  migrate(b) {
+    if (Array.isArray(b.lots)) return b;
+    const texte = typeof b.lots === 'string' ? b.lots : ''; b.lotsTexte = b.lotsTexte || texte;
+    const typeOf = u => /bureau/.test(u || '') ? 'bureau' : /parking|stationnement/.test(u || '') ? 'parking' : 'entrepot';
+    const surfaces = (b.surfaces || []).map(x => ({ ...x })); const lots = [];
+    for (const l of (b.lignes || [])) { const sf = surfaces.find(x => !x.used && typeOf(x.usage) === l.type); if (sf) sf.used = true; lots.push({ lot: l.type === 'parking' ? '' : texte, type: l.type || 'bureau', surface: l.surface || (sf ? sf.surface : null), montantAnnuelHT: l.montantAnnuelHT, unitCode: '' }); }
+    for (const sf of surfaces) if (!sf.used) lots.push({ lot: texte, type: typeOf(sf.usage), surface: sf.surface, montantAnnuelHT: null, unitCode: '' });
+    if (!lots.length) lots.push({ lot: texte, type: 'bureau', surface: b.surfaceTotale || null, montantAnnuelHT: b.loyerAnnuelHT || null, unitCode: '' });
+    b.lots = lots; delete b.lignes; delete b.surfaces; return b;
+  },
+  // Après modification des lots ou du total : répartition au prorata des surfaces et mise à jour des champs liés
+  redistribute(b, total) { CALC.repartir(b, total !== undefined ? total : CALC.loyerAnnuel(b)); b.loyerAnnuelHT = CALC.loyerAnnuel(b); const st = b.lots.reduce((s, l) => s + (+l.surface || 0), 0); if (st) b.surfaceTotale = st; },
+  async setLayout(patch) { Object.assign(APP.layout, patch); await DB.setSetting('layout', APP.layout); APP.applyLayout(); },
+  applyLayout() {
+    const g = UI.$('.baux'); if (!g) return; const L = APP.layout; if (L.form === 'full') L.form = 'large';
+    // Le PDF reste toujours visible ; la largeur libérée par la liste est reversée au formulaire
+    const formW = (L.form === 'large' ? 680 : 500) + (L.list ? 0 : 280);
+    g.style.gridTemplateColumns = `${L.list ? '280px ' : ''}minmax(320px, 1fr) ${formW}px`;
+    UI.$('#blist').classList.toggle('hidden', !L.list); UI.$('#bform').classList.toggle('wide', !L.list || L.form === 'large');
   },
   // ===== Vue Baux (3 panneaux) =====
   vBaux(v) {
     let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut);
     const actifs = [...new Set(APP.baux.map(b => b.actif).filter(Boolean))];
     v.innerHTML = `<div class="baux">
-      <div id="blist"><div class="toolbar row" style="padding:6px"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['extrait', 'a_verifier', 'anomalie', 'valide'], APP.filters.statut, UI.statutLabel)}</select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
-        ${L.map(b => `<div class="list-item ${APP.sel && APP.sel.id === b.id ? 'sel' : ''}" data-id="${b.id}"><div class="t"><span class="dot ${b.statut}"></span>${U.esc(b.preneur || b.ref || '—')}</div><div class="s"><span>${U.esc(b.ref || '')} · ${U.esc(b.actif || '')}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span></div></div>`).join('') || '<p class="muted" style="padding:10px">Aucun bail. Importez des PDF depuis le tableau de bord.</p>'}
+      <div id="blist"><div class="toolbar row"><select id="f-statut" style="flex:1"><option value="">Tous statuts (${APP.filtered().length})</option>${UI.opts(['extrait', 'a_verifier', 'anomalie', 'valide'], APP.filters.statut, UI.statutLabel)}</select><button id="btn-new" title="Créer un bail sans PDF">+</button></div>
+        <div class="list-progress">${APP.filtered().filter(b => b.statut === 'valide').length} / ${APP.filtered().length} validés<div class="progress ok"><div style="width:${APP.filtered().length ? Math.round(APP.filtered().filter(b => b.statut === 'valide').length / APP.filtered().length * 100) : 0}%"></div></div></div>
+        ${L.map(b => `<div class="list-item ${APP.sel && APP.sel.id === b.id ? 'sel' : ''}" data-id="${b.id}" title="${U.esc(b.pdfName || '')}"><div class="t"><span class="dot ${b.statut}"></span><span style="overflow:hidden;text-overflow:ellipsis">${U.esc(b.preneur || b.ref || '—')}</span></div><div class="s"><span>${U.esc(b.ref || '')}${b.actif ? ' · ' + U.esc(b.actif) : ''}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span></div></div>`).join('') || '<div class="empty"><b>Aucun bail</b><br>Importez des PDF depuis le tableau de bord.</div>'}
       </div>
-      <div id="viewer" class="viewer"><div class="toolbar"><span id="pv-info" class="muted">Sélectionnez un bail</span><span style="flex:1"></span><button id="pv-zoomout" title="Zoom -">−</button><button id="pv-zoomin" title="Zoom +">+</button><input id="pv-find" type="search" placeholder="Chercher dans le texte" style="width:180px"><button id="pv-text" title="Afficher le texte brut">Texte</button></div><div id="pv-pages"></div></div>
-      <div id="bform" class="form"><datalist id="dl-actifs">${actifs.map(a => `<option value="${U.esc(a)}">`).join('')}</datalist><p class="muted">Sélectionnez un bail dans la liste.<br><br>Raccourcis : <kbd>Ctrl</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd> bail suivant/précédent, <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> valider, <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer.</p></div></div>`;
+      <div id="viewer" class="viewer"><div class="toolbar"><span id="pv-info" class="muted toolbar-title">Sélectionnez un bail</span><span style="flex:1"></span><button id="pv-zoomout" title="Zoom -">−</button><button id="pv-zoomin" title="Zoom +">+</button><input id="pv-find" type="search" placeholder="Chercher dans le texte" style="width:180px"><button id="pv-text" title="Afficher le texte brut">Texte</button></div><div id="pv-pages"></div></div>
+      <div id="bform" class="form"><datalist id="dl-actifs">${actifs.map(a => `<option value="${U.esc(a)}">`).join('')}</datalist><div class="empty"><b>Sélectionnez un bail</b><br><br><span class="small">Raccourcis : <kbd>Ctrl</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd> bail suivant/précédent, <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> valider, <kbd>Ctrl</kbd>+<kbd>S</kbd> enregistrer. Entrer dans un champ affiche le passage source dans le PDF.</span></div></div></div>`;
     UI.$('#f-statut', v).onchange = e => { APP.filters.statut = e.target.value; APP.render(); };
     UI.$('#btn-new', v).onclick = () => APP.newBail();
     UI.$$('.list-item', v).forEach(el => el.onclick = () => APP.select(el.dataset.id));
     UI.$('#pv-zoomin', v).onclick = () => { APP.zoom = Math.min(3, (APP.zoom || 1.3) + 0.2); APP.renderPdf(); }; UI.$('#pv-zoomout', v).onclick = () => { APP.zoom = Math.max(0.6, (APP.zoom || 1.3) - 0.2); APP.renderPdf(); };
     UI.$('#pv-find', v).onchange = e => APP.findInPdf(e.target.value); UI.$('#pv-text', v).onclick = () => APP.showText();
+    APP.applyLayout();
     if (APP.sel) { const s = L.find(b => b.id === APP.sel.id); if (s) APP.select(s.id); }
   },
   selectOffset(d) { let L = APP.filtered(); if (APP.filters.statut) L = L.filter(b => b.statut === APP.filters.statut); const i = L.findIndex(b => APP.sel && b.id === APP.sel.id); const n = L[i + d]; if (n) APP.select(n.id); },
@@ -1295,22 +1408,32 @@ const APP = {
   renderForm() {
     const b = APP.sel, el = UI.$('#bform'); if (!b || !el) return;
     b.yardi = b.yardi || { tenantCodes: [], unitCodes: [] }; b.yardi.tenantCodesText = (b.yardi.tenantCodes || []).join(', '); b.yardi.unitCodesText = (b.yardi.unitCodes || []).join(', ');
-    b.loyerAnnuelHT = CALC.loyerAnnuel(b);
-    const lists = {}; let html = `<div class="actions"><button id="b-save" class="primary" title="Ctrl+S">Enregistrer</button><button id="b-validate" title="Ctrl+Entrée">✓ Valider</button><button id="b-reextract" title="Relancer l'extraction (règles + ancres apprises)">↻ Ré-extraire</button><button id="b-dup" title="Créer un avenant / bail lié">Avenant</button><button id="b-del" class="danger">Supprimer</button></div>
-      <div class="legend small muted"><span><span class="dot valide"></span>confiant</span><span><span class="dot a_verifier"></span>douteux</span><span><span class="dot anomalie"></span>non trouvé</span><span><span class="dot extrait"></span>saisi</span></div>`;
+    b.lots = Array.isArray(b.lots) ? b.lots : []; b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT || null;
+    const lists = {}; const ess = APP.mode === 'essentiel';
+    let html = `<div class="actions"><button id="b-list" title="Afficher / masquer la liste">☰</button><button id="b-width" title="Largeur du formulaire : normale / large">${APP.layout.form === 'large' ? '⇤ Réduire' : '⇔ Élargir'}</button><button id="b-mode" title="Afficher seulement les champs utiles au quittancement, ou tout">${ess ? 'Essentiel ▸ Complet' : 'Complet ▸ Essentiel'}</button><span style="flex:1"></span><button id="b-save" class="primary ${APP.dirty ? 'unsaved' : ''}" title="Ctrl+S">Enregistrer</button><button id="b-validate" title="Valider et passer au suivant (Ctrl+Entrée)">✓ Valider</button><button id="b-next" title="Bail suivant à vérifier">Suivant ▸</button><button id="b-reextract" class="ghost" title="Relancer l'extraction (règles + ancres apprises)">↻</button>${ess ? '' : '<button id="b-dup" title="Créer un avenant / bail lié">Avenant</button><button id="b-del" class="danger ghost">Supprimer</button>'}</div>
+      <div class="legend"><span><span class="dot valide"></span>confiant</span><span><span class="dot a_verifier"></span>douteux</span><span><span class="dot anomalie"></span>non trouvé</span><span><span class="dot extrait"></span>saisi</span><span class="muted2">· œil = voir dans le PDF</span></div>`;
     if (b.anomalies && b.anomalies.length) html += `<div class="anoms"><b>Anomalies détectées</b><ul style="margin:4px 0 0 16px;padding:0">${b.anomalies.map(a => `<li>${U.esc(a)}</li>`).join('')}</ul></div>`;
     const lx = CALC.loyerIndexeAt(b, U.toISO(new Date()));
-    html += `<div class="muted small" style="margin-bottom:8px">PDF : ${U.esc(b.pdfName || 'aucun')} (${b.pdfPages || 0} p.${b.ocr ? ', OCR' : ''}) · Loyer indexé aujourd'hui : <b>${U.fmtMoney(lx.montant)} € HT/an</b> (coef ${lx.coef.toFixed(4)})${lx.missing.length ? ` <span class="error">indice manquant : ${lx.missing.join(', ')}</span>` : ''}${lx.unverified.length ? ` <span class="warn">indice non vérifié : ${lx.unverified.join(', ')}</span>` : ''}</div>`;
-    for (const f of UI.FORM) {
-      if (f.group) { html += `<h3>${f.group}</h3>`; if (f.group === 'Loyer et facturation') html += UI.subTable('lignes', UI.SUB.lignes.title, UI.SUB.lignes.cols, b.lignes || []) + UI.subTable('paliers', UI.SUB.paliers.title, UI.SUB.paliers.cols, b.paliers || []); if (f.group === 'Lieux loués') html += UI.subTable('surfaces', UI.SUB.surfaces.title, UI.SUB.surfaces.cols, b.surfaces || []); if (f.group === 'Suivi') html += UI.subTable('avenants', UI.SUB.avenants.title, UI.SUB.avenants.cols, b.avenants || []); continue; }
-      html += UI.fieldHtml(f, b, lists);
+    html += `<div class="meta">${UI.tag(b.statut)} &nbsp;PDF : ${U.esc(b.pdfName || 'aucun')} (${b.pdfPages || 0} p.${b.ocr ? ', OCR' : ''})<br>Loyer indexé aujourd'hui : <b>${U.fmtMoney(lx.montant)} € HT/an</b> (coef ${lx.coef.toFixed(4)})${lx.missing.length ? ` · <span class="error">indice manquant : ${lx.missing.join(', ')}</span>` : ''}${lx.unverified.length ? ` · <span class="warn">indice non vérifié : ${lx.unverified.join(', ')}</span>` : ''}</div>`;
+    const groups = UI.FORM.filter(f => f.group).map(f => f.group);
+    for (const grp of groups) {
+      const fields = UI.FORM.slice(UI.FORM.findIndex(f => f.group === grp) + 1).reduce((acc, f) => { if (f.group || acc.stop) { acc.stop = true; return acc; } acc.list.push(f); return acc; }, { list: [], stop: false }).list.filter(f => !ess || f.ess);
+      const extra = grp === 'Lieux loués' ? UI.subTable('lots', UI.SUB.lots.title, UI.SUB.lots.cols, b.lots || []) : grp === 'Loyer et facturation' && !ess ? UI.subTable('paliers', UI.SUB.paliers.title, UI.SUB.paliers.cols, b.paliers || []) : grp === 'Suivi' && !ess ? UI.subTable('avenants', UI.SUB.avenants.title, UI.SUB.avenants.cols, b.avenants || []) : '';
+      if (!fields.length && !extra) continue;
+      html += `<h3>${grp}</h3>` + extra + fields.map(f => UI.fieldHtml(f, b, lists)).join('');
     }
     html += `<h3>Échéances</h3><ul class="small" style="margin:0;padding-left:16px">${CALC.echeances(b).map(e => `<li>${U.fmtDate(e.date)} : ${e.libelle}${e.preavis ? ` (préavis avant le ${U.fmtDate(e.preavis)})` : ''}</li>`).join('') || '<li class="muted">—</li>'}</ul>`;
     html += `<h3>Historique</h3><div class="small muted">${(b.history || []).slice(-15).reverse().map(h => `${h.date.slice(0, 16).replace('T', ' ')} – ${U.esc(h.champ)} : ${U.esc(String(h.avant ?? '∅'))} → ${U.esc(String(h.apres ?? '∅'))}`).join('<br>') || '—'}</div>`;
     el.innerHTML = html;
-    el.oninput = e => { const t = e.target; if (t.dataset.field) APP.onField(t); else if (t.dataset.sub) APP.onSub(t); };
-    el.onclick = e => { const t = e.target.closest('button'); if (!t) return; if (t.dataset.src) APP.showSource(t.dataset.src); else if (t.dataset.subadd) { (b[t.dataset.subadd] ||= []).push(UI.SUB[t.dataset.subadd].blank()); APP.dirty = true; APP.renderForm(); } else if (t.dataset.subdel) { b[t.dataset.subdel].splice(+t.dataset.i, 1); APP.dirty = true; APP.renderForm(); } };
-    UI.$('#b-save', el).onclick = () => APP.saveSel(true); UI.$('#b-validate', el).onclick = () => APP.validate(); UI.$('#b-del', el).onclick = () => APP.deleteSel(); UI.$('#b-reextract', el).onclick = () => APP.reextract(); UI.$('#b-dup', el).onclick = () => APP.newBail(b);
+    el.oninput = e => { const t = e.target; if (t.dataset.field) APP.onField(t); else if (t.dataset.sub) APP.onSub(t); const sv = UI.$('#b-save'); if (sv) sv.classList.add('unsaved'); };
+    el.onfocusin = e => { const t = e.target; if (t.dataset.field && b.fields && b.fields[t.dataset.field] && b.fields[t.dataset.field].page) APP.showSource(t.dataset.field, true); };
+    el.onclick = e => { const t = e.target.closest('button'); if (!t) return; if (t.dataset.src) APP.showSource(t.dataset.src); else if (t.dataset.subadd) { (b[t.dataset.subadd] ||= []).push(UI.SUB[t.dataset.subadd].blank()); if (t.dataset.subadd === 'lots') APP.redistribute(b, b.loyerAnnuelHT); APP.dirty = true; APP.renderForm(); } else if (t.dataset.subdel) { b[t.dataset.subdel].splice(+t.dataset.i, 1); if (t.dataset.subdel === 'lots') APP.redistribute(b, b.loyerAnnuelHT); APP.dirty = true; APP.renderForm(); } };
+    UI.$('#b-save', el).onclick = () => APP.saveSel(true); UI.$('#b-validate', el).onclick = () => APP.validate(); UI.$('#b-reextract', el).onclick = () => APP.reextract();
+    UI.$('#b-next', el).onclick = () => { let L = APP.filtered(); const i = L.findIndex(x => x.id === b.id); const nx = L.slice(i + 1).find(x => x.statut !== 'valide') || L.slice(0, i).find(x => x.statut !== 'valide'); if (nx) APP.select(nx.id); else UI.toast('Tous les baux filtrés sont validés'); };
+    const bd = UI.$('#b-del', el); if (bd) bd.onclick = () => APP.deleteSel(); const bp = UI.$('#b-dup', el); if (bp) bp.onclick = () => APP.newBail(b);
+    UI.$('#b-list', el).onclick = () => { APP.setLayout({ list: !APP.layout.list }); if (APP.doc) APP.renderPdf(); };
+    UI.$('#b-width', el).onclick = () => { APP.setLayout({ form: APP.layout.form === 'large' ? 'normal' : 'large' }); APP.renderForm(); if (APP.doc) APP.renderPdf(); };
+    UI.$('#b-mode', el).onclick = async () => { APP.mode = ess ? 'complet' : 'essentiel'; await DB.setSetting('mode', APP.mode); APP.renderForm(); };
   },
   onField(t) {
     const f = UI.FORM.find(x => x.key === t.dataset.field); const b = APP.sel; const path = t.dataset.path; const v = UI.readField(f, t); const before = UI.getPath(b, path);
@@ -1318,23 +1441,37 @@ const APP = {
     b.fields = b.fields || {}; const meta = b.fields[f.key] || {}; meta.conf = 'manuel'; b.fields[f.key] = meta;
     (b.history ||= []).push({ date: new Date().toISOString(), champ: f.label, avant: before, apres: v });
     t.closest('.f').className = 'f manuel';
-    if (f.key === 'yardiTenant') b.yardi.tenantCodes = (v || '').split(/[,\s;]+/).filter(Boolean); if (f.key === 'yardiUnit') b.yardi.unitCodes = (v || '').split(/[,\s;]+/).filter(Boolean);
+    if (f.key === 'yardiTenant') b.yardi.tenantCodes = (v || '').split(/[,\s;]+/).filter(Boolean);
+    if (f.key === 'loyerAnnuelHT') { APP.redistribute(b, v || 0); APP.refreshLots(); }
     // apprentissage de l'ancre si la valeur figure dans le texte du PDF
     if (EXTRACT.FIELDS.some(x => x.key === f.key) && v !== null && v !== '' && APP.pages) { APP.learned = EXTRACT.learn(APP.learned, f.key, v, APP.pages); DB.setSetting('learned', APP.learned); }
   },
-  onSub(t) { const row = APP.sel[t.dataset.sub][+t.dataset.i]; const col = UI.SUB[t.dataset.sub].cols.find(c => c.key === t.dataset.k); row[t.dataset.k] = col.type === 'num' ? U.parseNum(t.value) : t.value; APP.dirty = true; if (t.dataset.sub === 'lignes') { const tot = UI.$('[data-field="loyerAnnuelHT"]'); if (tot) tot.value = U.fmtNum(CALC.loyerAnnuel(APP.sel), 2); } },
+  onSub(t) {
+    const b = APP.sel; const row = b[t.dataset.sub][+t.dataset.i]; const col = UI.SUB[t.dataset.sub].cols.find(c => c.key === t.dataset.k); row[t.dataset.k] = col.type === 'num' ? U.parseNum(t.value) : t.value; APP.dirty = true;
+    if (t.dataset.sub === 'lots') {
+      if (t.dataset.k === 'montantAnnuelHT') { b.loyerAnnuelHT = CALC.loyerAnnuel(b); } // saisie directe d'un montant : le total suit
+      else if (t.dataset.k === 'surface' || t.dataset.k === 'type') { APP.redistribute(b, b.loyerAnnuelHT); }
+      APP.refreshLots(t);
+    }
+  },
+  // Rafraîchit les montants/surfaces affichés sans re-rendre tout le formulaire (garde le focus)
+  refreshLots(except) {
+    const b = APP.sel; UI.$$('[data-sub="lots"]').forEach(i => { if (i === except) return; const row = b.lots[+i.dataset.i]; if (!row) return; if (i.dataset.k === 'montantAnnuelHT') i.value = U.fmtNum(row.montantAnnuelHT, 2); if (i.dataset.k === 'surface') i.value = U.fmtNum(row.surface, 2); });
+    const tot = UI.$('[data-field="loyerAnnuelHT"]'); if (tot && tot !== except && document.activeElement !== tot) tot.value = U.fmtNum(b.loyerAnnuelHT, 2);
+    const st = UI.$('[data-field="surfaceTotale"]'); if (st && document.activeElement !== st) st.value = U.fmtNum(b.surfaceTotale, 2);
+  },
   async saveSel(notify) {
-    const b = APP.sel; if (!b) return; b.updated = new Date().toISOString(); b.loyerAnnuelHT = CALC.loyerAnnuel(b);
+    const b = APP.sel; if (!b) return; b.updated = new Date().toISOString(); b.loyerAnnuelHT = CALC.loyerAnnuel(b) || b.loyerAnnuelHT;
     const clean = U.clone(b); delete clean.yardi.tenantCodesText; delete clean.yardi.unitCodesText;
     await DB.put('baux', clean); const i = APP.baux.findIndex(x => x.id === b.id); if (i >= 0) APP.baux[i] = clean; else APP.baux.push(clean);
-    APP.dirty = false; if (notify) UI.toast('Enregistré');
+    APP.dirty = false; if (notify) UI.toast('Enregistré ✓'); const sv = UI.$('#b-save'); if (sv) sv.classList.remove('unsaved');
     const li = UI.$(`.list-item[data-id="${b.id}"]`); if (li) { li.querySelector('.t').innerHTML = `<span class="dot ${b.statut}"></span>${U.esc(b.preneur || b.ref || '—')}`; li.querySelector('.s').innerHTML = `<span>${U.esc(b.ref || '')} · ${U.esc(b.actif || '')}</span><span>${U.fmtMoney(CALC.loyerAnnuel(b), 0)} €</span>`; }
   },
   async validate() { if (!APP.sel) return; APP.sel.statut = 'valide'; await APP.saveSel(false); UI.toast('Bail validé'); APP.selectOffset(1); },
   async deleteSel() { const b = APP.sel; if (!b || !(await UI.confirm(`Supprimer le bail « ${U.esc(b.preneur || b.ref)} » et son PDF ?`, { ok: 'Supprimer', danger: true }))) return; await DB.del('baux', b.id); if (b.pdfId) await DB.del('pdfs', b.pdfId); APP.baux = APP.baux.filter(x => x.id !== b.id); APP.sel = null; APP.dirty = false; APP.render(); },
   async newBail(from) {
-    const b = { id: U.uid(), ref: from ? `${from.ref} – avenant` : '', statut: 'a_verifier', created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [], lignes: [], surfaces: [], paliers: [], avenants: [], anomalies: [], index: {}, depot: {}, charges: {}, tva: { option: true, taux: 20 }, yardi: { tenantCodes: [], unitCodes: [] }, prorata: 'jours' };
-    if (from) { for (const k of ['type', 'bailleur', 'preneur', 'enseigne', 'siren', 'actif', 'adresse', 'batiment', 'lots', 'surfaceTotale', 'periodicite', 'terme', 'prorata']) b[k] = from[k]; b.parentId = from.id; b.index = U.clone(from.index || {}); b.lignes = U.clone(from.lignes || []); b.fields = {}; }
+    const b = { id: U.uid(), ref: from ? `${from.ref} – avenant` : '', statut: 'a_verifier', created: new Date().toISOString(), updated: new Date().toISOString(), fields: {}, history: [], lots: [], paliers: [], avenants: [], anomalies: [], index: {}, depot: {}, charges: {}, tva: { option: true, taux: 20 }, yardi: { tenantCodes: [], unitCodes: [], propertyCode: '' }, prorata: 'jours' };
+    if (from) { for (const k of ['type', 'bailleur', 'preneur', 'enseigne', 'siren', 'actif', 'adresse', 'batiment', 'lotsTexte', 'surfaceTotale', 'periodicite', 'terme', 'prorata']) b[k] = from[k]; b.parentId = from.id; b.index = U.clone(from.index || {}); b.lots = U.clone(from.lots || []); b.yardi = U.clone(from.yardi || b.yardi); b.fields = {}; }
     await DB.put('baux', b); APP.baux.push(b); APP.sel = null; APP.render(); APP.select(b.id);
   },
   async reextract() {
@@ -1352,7 +1489,7 @@ const APP = {
     const b = APP.sel; const info = UI.$('#pv-info'), cont = UI.$('#pv-pages'); if (!cont) return; cont.innerHTML = ''; APP.pages = null;
     if (!b.pdfId) { info.textContent = 'Aucun PDF associé'; return; }
     if (APP.docId !== b.pdfId) { if (APP.doc) { try { APP.doc.destroy(); } catch { } } APP.doc = null; const p = await DB.get('pdfs', b.pdfId); if (!p) { info.textContent = 'PDF introuvable'; return; } APP.pages = p.pages; APP.doc = await PDF.open(p.data); APP.docId = b.pdfId; APP.pdfRec = p; } else APP.pages = APP.pdfRec.pages;
-    info.textContent = `${b.pdfName} – ${APP.doc.numPages} pages`; await APP.renderPdf();
+    info.textContent = `${b.pdfName} · ${APP.doc.numPages} page${APP.doc.numPages > 1 ? 's' : ''}`; await APP.renderPdf();
   },
   async renderPdf() {
     const cont = UI.$('#pv-pages'); if (!cont || !APP.doc) return; cont.innerHTML = ''; const scale = APP.zoom || 1.3; APP.pageEls = [];
@@ -1367,11 +1504,11 @@ const APP = {
     if (scroll) { d.scrollIntoView({ block: 'start' }); if (first) setTimeout(() => first.scrollIntoView({ block: 'center' }), 50); }
     return n;
   },
-  showSource(key) {
+  showSource(key, quiet) {
     const m = APP.sel.fields && APP.sel.fields[key]; if (!m || !m.page) return;
     const words = new Set(U.norm(m.snippet || '').replace(/…/g, ' ').split(/[^a-z0-9€,.'/-]+/).filter(w => w.length > 1));
     const n = APP.highlight(m.page, it => { const toks = U.norm(it.s).split(/[^a-z0-9€,.'/-]+/).filter(w => w.length > 1); if (!toks.length) return false; const hit = toks.filter(t => words.has(t)).length; return hit / toks.length >= 0.6 && (hit >= 2 || toks.length === 1); });
-    if (!n) UI.toast(`Page ${m.page} : ${m.snippet || ''}`, 5000);
+    if (!n && !quiet) UI.toast(`Page ${m.page} : ${m.snippet || ''}`, 5000);
   },
   findInPdf(q) { q = U.norm(q); if (!q || !APP.pages) return; const pg = APP.pages.find(p => U.norm(p.text).includes(q)); if (!pg) { UI.toast('Introuvable'); return; } const n = APP.highlight(pg.num, it => U.norm(it.s).includes(q) || q.includes(U.norm(it.s)) && it.s.length > 3); if (!n) { APP.pageEls[pg.num - 1].scrollIntoView(); UI.toast(`Page ${pg.num}`); } },
   showText() { if (!APP.pages) return; UI.modal(`<h2>Texte extrait</h2><textarea class="wide" style="min-height:70vh;width:80vw" readonly>${U.esc(APP.pages.map(p => `===== Page ${p.num}${p.ocr ? ' (OCR)' : ''} =====\n${p.text}`).join('\n\n'))}</textarea><div class="row" style="justify-content:flex-end;margin-top:8px"><button data-close>Fermer</button></div>`); },
@@ -1380,7 +1517,7 @@ const APP = {
     const rows = INDICES.cache || []; const types = Object.keys(INDICES.TYPES); const years = [...new Set(rows.map(r => +r.periode.slice(0, 4)))].sort((a, b) => b - a); const y0 = new Date().getFullYear(); for (let y = y0 + 1; y >= y0 - 1; y--) if (!years.includes(y)) years.push(y); years.sort((a, b) => b - a);
     const unv = rows.filter(r => !r.verifie).length;
     v.innerHTML = `<div class="panel"><h2>Tables d'indices</h2>
-      <div class="row"><button id="idx-csv">Importer un CSV…</button><input type="file" id="idx-file" accept=".csv,.txt" class="hidden"><button id="idx-verify-all">Marquer tout comme vérifié</button><button id="idx-export">Exporter (Excel)</button><span class="muted small">CSV attendu : <code>type;periode;valeur</code> (ex. <code>ILAT;2025T2;136,34</code>). ${unv ? `<span class="warn">${unv} valeur(s) pré-remplies non vérifiées.</span>` : '<span class="ok">Toutes les valeurs sont vérifiées.</span>'}</span></div>
+      <div class="row"><button id="idx-csv">Importer un CSV…</button><input type="file" id="idx-file" accept=".csv,.txt" class="hidden"><button id="idx-verify-all">Marquer tout comme vérifié</button><button id="idx-export">Exporter (Excel)</button><button id="idx-template">Modèle CSV d'import</button><span class="muted small">CSV attendu : <code>type;periode;valeur</code> (ex. <code>ILAT;2025T2;136,34</code>). ${unv ? `<span class="warn">${unv} valeur(s) pré-remplies non vérifiées.</span>` : '<span class="ok">Toutes les valeurs sont vérifiées.</span>'}</span></div>
       <p class="muted small">Modifiez une valeur directement dans la cellule (elle devient « vérifiée »). Case vide = indice non publié / inconnu. Les valeurs pré-remplies proviennent de mémoire et doivent être contrôlées sur insee.fr.</p>
       <div class="indices-grid">${types.map(t => `<div><h3>${t} <span class="muted" style="text-transform:none;font-weight:normal">${INDICES.TYPES[t]}</span></h3><table><thead><tr><th>Année</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr></thead><tbody>${years.map(y => `<tr><td>${y}</td>${[1, 2, 3, 4].map(q => { const r = INDICES.get(t, `${y}T${q}`); return `<td><input data-idx="${t}" data-p="${y}T${q}" value="${r ? U.fmtNum(r.valeur, 2) : ''}" class="${r ? (r.verifie ? 'ok' : 'warn') : ''}" style="${r && !r.verifie ? 'border-color:var(--doute)' : ''}" title="${r ? U.esc(r.source) : ''}"></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`).join('')}</div>
       <div class="row" style="margin-top:8px"><button id="idx-addyear">+ Année antérieure</button></div></div>`;
@@ -1388,25 +1525,27 @@ const APP = {
     UI.$('#idx-csv', v).onclick = () => UI.$('#idx-file', v).click();
     UI.$('#idx-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; const r = await INDICES.importCSV(await U.readFile(f, 'text')); UI.toast(`${r.n} valeurs importées${r.errs.length ? `, ${r.errs.length} lignes ignorées` : ''}`); APP.render(); };
     UI.$('#idx-verify-all', v).onclick = async () => { if (!(await UI.confirm('Marquer toutes les valeurs comme vérifiées ?'))) return; for (const r of rows) if (!r.verifie) await DB.put('indices', { ...r, verifie: true }); await INDICES.load(); APP.render(); };
+    UI.$('#idx-template', v).onclick = () => U.download('modele_import_indices.csv', '\ufeff' + INDICES.template(), 'text/csv;charset=utf-8');
     UI.$('#idx-export', v).onclick = () => { const wb = XLSX.utils.book_new(); EXCEL.sheet(wb, 'Indices', rows.map(i => ({ Indice: i.type, Période: i.periode, Valeur: i.valeur, Vérifié: i.verifie ? 'oui' : 'non', Source: i.source }))); XLSX.writeFile(wb, 'indices.xlsx'); };
     UI.$('#idx-addyear', v).onclick = async () => { const y = Math.min(...years) - 1; await INDICES.set('ILC', `${y}T1`, 0, false, 'à saisir'); await INDICES.remove('ILC', `${y}T1`); years.push(y); APP.render(); };
   },
   // ===== Quittancement =====
   vQuittance(v) {
-    const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '' };
+    const today = U.toISO(new Date()); const q = APP.qParams || { from: today.slice(0, 4) + '-01-01', to: today.slice(0, 4) + '-12-31', statut: '', loyersSeuls: true };
     v.innerHTML = `<div class="panel"><h2>Quittancement</h2><div class="row"><label>Du <input type="date" id="q-from" value="${q.from}"></label><label>au <input type="date" id="q-to" value="${q.to}"></label>
       <select id="q-statut"><option value="">Tous les baux filtrés</option>${UI.opts(['valide', 'a_verifier', 'extrait', 'anomalie'], q.statut, UI.statutLabel)}</select>
+      <label><input type="checkbox" id="q-loyers" ${q.loyersSeuls !== false ? 'checked' : ''}> loyers seulement (une ligne par lot, sans charges ni taxes ni dépôt)</label>
       <button id="q-run" class="primary">Calculer</button><button id="q-export" ${APP.quittance ? '' : 'disabled'}>Exporter (Excel)</button><span class="muted small">Les filtres actif / locataire de la barre s'appliquent.</span></div>
       <div id="q-warn"></div></div><div id="q-out"></div>`;
     const run = () => {
-      APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value };
+      APP.qParams = { from: UI.$('#q-from').value, to: UI.$('#q-to').value, statut: UI.$('#q-statut').value, loyersSeuls: UI.$('#q-loyers').checked };
       let L = APP.filtered(); if (APP.qParams.statut) L = L.filter(b => b.statut === APP.qParams.statut);
       const lignes = [], warns = [];
-      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
+      for (const b of L) { const r = CALC.quittance(b, APP.qParams.from, APP.qParams.to, { loyersSeuls: APP.qParams.loyersSeuls }); lignes.push(...r.lignes); r.warnings.forEach(w => warns.push(`${b.ref || b.preneur} : ${w}`)); }
       APP.quittance = lignes; UI.$('#q-export').disabled = !lignes.length;
       UI.$('#q-warn').innerHTML = warns.length ? `<div class="anoms" style="margin-top:8px"><b>${warns.length} avertissement(s)</b><ul style="margin:4px 0 0 16px;padding:0;max-height:120px;overflow:auto">${[...new Set(warns)].map(w => `<li>${U.esc(w)}</li>`).join('')}</ul></div>` : '';
       const tot = lignes.reduce((a, l) => ({ ht: a.ht + l.ht, tva: a.tva + l.tva, ttc: a.ttc + l.ttc }), { ht: 0, tva: 0, ttc: 0 });
-      const cols = [{ key: 'ref', label: 'Réf.' }, { key: 'preneur', label: 'Preneur' }, { key: 'actif', label: 'Actif' }, { key: 'du', label: 'Du', render: U.fmtDate }, { key: 'au', label: 'Au', render: U.fmtDate }, { key: 'libelle', label: 'Libellé' }, { key: 'chargeCode', label: 'Code' }, { key: 'coef', label: 'Coef.', num: true, dec: 4 }, { key: 'prorata', label: 'Prorata', num: true, dec: 4 }, { key: 'ht', label: 'HT', num: true }, { key: 'tva', label: 'TVA', num: true }, { key: 'ttc', label: 'TTC', num: true }];
+      const cols = [{ key: 'ref', label: 'Réf.' }, { key: 'yardiProperty', label: 'Property (Yardi)' }, { key: 'yardiTenant', label: 'Tenant (Yardi)' }, { key: 'tenantCode', label: 'Tenant id' }, { key: 'propertyCode', label: 'N° actif' }, { key: 'lot', label: 'Lot' }, { key: 'du', label: 'Du', render: U.fmtDate }, { key: 'au', label: 'Au', render: U.fmtDate }, { key: 'libelle', label: 'Libellé' }, { key: 'chargeCode', label: 'Code' }, { key: 'coef', label: 'Coef.', num: true, dec: 4 }, { key: 'prorata', label: 'Prorata', num: true, dec: 4 }, { key: 'ht', label: 'HT', num: true }, { key: 'tva', label: 'TVA', num: true }, { key: 'ttc', label: 'TTC', num: true }];
       const t = UI.table(cols, lignes, { sortKey: APP.sort.q, sortDir: APP.sort.qd || 1, onRow: r => { APP.sel = null; APP.filters.statut = ''; APP.go('baux'); APP.select(r.bailId); } });
       UI.$('#q-out').innerHTML = `<div class="panel"><div class="row" style="justify-content:space-between"><b>${lignes.length} lignes</b><span>Total HT <b>${U.fmtMoney(tot.ht)}</b> · TVA ${U.fmtMoney(tot.tva)} · TTC <b>${U.fmtMoney(tot.ttc)}</b></span></div>${t.html}</div>`;
       t.bind(UI.$('#q-out')); UI.$$('#q-out th[data-sort]').forEach(th => th.onclick = () => { APP.sort.qd = APP.sort.q === th.dataset.sort ? -(APP.sort.qd || 1) : 1; APP.sort.q = th.dataset.sort; run(); });
@@ -1419,17 +1558,18 @@ const APP = {
     const imp = await DB.get('yardi', 'current'); APP.yardiRows = imp ? imp.rows : [];
     const linked = APP.filtered().filter(b => b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.length);
     v.innerHTML = `<div class="panel"><h2>Rapprochement Yardi</h2>
-      <div class="row"><button id="y-file">Importer un export (xlsx / csv)…</button><input type="file" id="y-in" accept=".xlsx,.xls,.csv,.txt,.tsv" class="hidden"><button id="y-paste">Coller un export…</button>
+      <div class="row"><button id="y-file">Importer un export (xlsx / csv)…</button><input type="file" id="y-in" accept=".xlsx,.xls,.csv,.txt,.tsv" class="hidden"><button id="y-paste">Coller un export…</button><button id="y-template">Modèle d'export attendu</button>
         <span class="muted">${imp ? `${APP.yardiRows.length} lignes importées le ${imp.date.slice(0, 16).replace('T', ' ')}` : 'Aucun export importé'}</span>
         <span style="flex:1"></span><button id="y-match">Associer automatiquement les locataires</button></div>
       <p class="muted small">Colonnes reconnues : Property, Tenant, Unit, Description, Charge Code, Net, VAT, Total Amount, Charge From, Charge To. Le code locataire (t…) est lu dans la colonne Tenant. Un bail peut être associé à plusieurs codes (fiche bail, groupe Yardi).</p>
       <div class="row"><label>Mode <select id="y-mode"><option value="global">Global (par locataire et code charge)</option><option value="detail" ${APP.yMode === 'detail' ? 'selected' : ''}>Détail (par mois)</option></select></label>
         <label>Statut <select id="y-statut"><option value="">Tous</option>${UI.opts(['Écart', 'Yardi seul', 'Calcul seul', 'OK', 'Yardi absent'], APP.yStatut)}</select></label>
         <button id="y-run" class="primary" ${APP.yardiRows.length && linked.length ? '' : 'disabled'}>Rapprocher (${linked.length} baux associés)</button><button id="y-export" ${APP.rapp ? '' : 'disabled'}>Exporter les corrections (Excel)</button></div></div><div id="y-out"></div>`;
+    UI.$('#y-template', v).onclick = () => EXCEL.yardiTemplate();
     UI.$('#y-file', v).onclick = () => UI.$('#y-in', v).click();
     UI.$('#y-in', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const rows = /\.xlsx?$/i.test(f.name) ? YARDI.parseWorkbook(await U.readFile(f)) : YARDI.parseText(await U.readFile(f, 'text')); await APP.saveYardi(rows, f.name); } catch (ex) { UI.toast('Erreur : ' + ex.message, 5000); } };
     UI.$('#y-paste', v).onclick = () => UI.modal(`<h2>Coller l'export Yardi (copié depuis Excel)</h2><textarea id="y-txt" class="wide" style="width:70vw;min-height:40vh"></textarea><div class="row" style="justify-content:flex-end;margin-top:8px"><button data-close>Annuler</button><button id="y-ok" class="primary">Importer</button></div>`, b => { UI.$('#y-ok', b).onclick = async () => { try { const rows = YARDI.parseText(UI.$('#y-txt', b).value); UI.closeModal(); await APP.saveYardi(rows, 'collage'); } catch (ex) { UI.toast('Erreur : ' + ex.message, 5000); } }; });
-    UI.$('#y-match', v).onclick = async () => { let n = 0; for (const b of APP.baux) { if (b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.length) continue; const s = YARDI.suggest(b, APP.yardiRows); if (s.length && s[0].score >= 0.8) { b.yardi = b.yardi || {}; b.yardi.tenantCodes = [s[0].code]; b.yardi.unitCodes = [...new Set(APP.yardiRows.filter(r => r.tenantCode === s[0].code).map(r => r.unitCode).filter(Boolean))]; await DB.put('baux', b); n++; } } UI.toast(`${n} bail(x) associé(s) par le nom du locataire ; vérifiez dans chaque fiche`); APP.render(); };
+    UI.$('#y-match', v).onclick = async () => { let n = 0; for (const b of APP.baux) { if (b.yardi && b.yardi.tenantCodes && b.yardi.tenantCodes.length) continue; const s = YARDI.suggest(b, APP.yardiRows); if (s.length && s[0].score >= 0.8) { b.yardi = b.yardi || {}; b.yardi.tenantCodes = [s[0].code]; const rs = APP.yardiRows.filter(r => r.tenantCode === s[0].code); b.yardi.unitCodes = [...new Set(rs.map(r => r.unitCode).filter(Boolean))]; if (!b.yardi.propertyCode && rs[0]) b.yardi.propertyCode = rs[0].propertyCode || ''; if (Array.isArray(b.lots)) b.lots.forEach((l, i) => { if (!l.unitCode) l.unitCode = b.yardi.unitCodes[Math.min(i, b.yardi.unitCodes.length - 1)] || ''; }); await DB.put('baux', b); n++; } } UI.toast(`${n} bail(x) associé(s) par le nom du locataire ; vérifiez dans chaque fiche`); APP.render(); };
     const run = () => {
       APP.yMode = UI.$('#y-mode').value; APP.yStatut = UI.$('#y-statut').value; APP.rapp = YARDI.reconcile(linked, APP.yardiRows, APP.yMode); UI.$('#y-export').disabled = !APP.rapp.length;
       let rows = APP.rapp; if (APP.yStatut) rows = rows.filter(r => r.statut === APP.yStatut);
@@ -1450,16 +1590,16 @@ const APP = {
       <div class="row"><button id="p-exp-enc" class="primary">Exporter une sauvegarde chiffrée (.bbx)</button><button id="p-exp-clear">Exporter en clair (.json)</button><label><input type="checkbox" id="p-withpdf" checked> inclure les PDF</label></div>
       <div class="row" style="margin-top:8px"><button id="p-imp">Restaurer une sauvegarde…</button><input type="file" id="p-imp-file" accept=".bbx,.json" class="hidden"><label><input type="checkbox" id="p-replace"> remplacer les données existantes</label></div>
       <p class="muted small">La sauvegarde chiffrée utilise un mot de passe de votre choix (AES-256-GCM). L'export en clair contient toutes les données lisibles : à réserver à un emplacement protégé.</p></div>
-      <div class="panel"><h2>Export Excel de la base</h2><div class="row"><button id="p-xlsx" class="primary">Exporter la base complète (.xlsx)</button><span class="muted small">Onglets : Baux, Lignes de loyer, Surfaces, Paliers, Avenants, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
+      <div class="panel"><h2>Export Excel de la base</h2><div class="row"><button id="p-xlsx" class="primary">Exporter la base complète (.xlsx)</button><span class="muted small">Onglets : Baux, Lots, Paliers, Avenants, Indices, Quittancement et Rapprochement (s'ils ont été calculés).</span></div></div>
       <div class="panel"><h2>Sécurité</h2><div class="row"><button id="p-pass">Changer le mot de passe maître</button><label>Verrouillage auto après <input type="number" id="p-delay" value="${SESSION.delayMin}" min="0" style="width:60px"> min (0 = jamais)</label></div></div>
       <div class="panel"><h2>Codes de charge Yardi</h2><div class="row">${Object.keys(CALC.DEFAULT_CODES).map(k => `<label>${CALC.LABELS[k] || k} (${k}) <input data-code="${k}" value="${U.esc(codes[k] || '')}" style="width:90px"></label>`).join('')}</div></div>
       <div class="panel"><h2>Extraction</h2><div class="row"><button id="p-reextract">Ré-extraire tous les baux non validés</button><button id="p-forget">Oublier les ancres apprises</button><span class="muted small">${Object.values(APP.learned).reduce((n, a) => n + a.length, 0)} ancre(s) apprise(s) à partir de vos corrections.</span></div></div>
       <div class="panel"><h2>Zone dangereuse</h2><button id="p-wipe" class="danger">Effacer toutes les données du dossier</button></div>
-      <p class="muted small">Version du 2026-11-05. Librairies : pdf.js, Tesseract.js, SheetJS (licences Apache 2.0). Aucune connexion réseau.</p>`;
+      <p class="muted small">Version du 2026-11-06. Librairies : pdf.js, Tesseract.js, SheetJS (licences Apache 2.0). Aucune connexion réseau.</p>`;
     UI.$('#p-exp-enc', v).onclick = async () => { const pw = await UI.prompt('Mot de passe de la sauvegarde (8 caractères minimum) :', { type: 'password' }); if (!pw || pw.length < 8) { if (pw !== null) UI.toast('Trop court'); return; } UI.toast('Préparation…'); const data = await DB.exportAll(UI.$('#p-withpdf').checked); U.download(`sauvegarde_baux_${U.toISO(new Date())}.bbx`, await CRYPTO.packFile(data, pw), 'application/octet-stream'); };
     UI.$('#p-exp-clear', v).onclick = async () => { if (!(await UI.confirm('Exporter toutes les données EN CLAIR ? Le fichier sera lisible par quiconque y accède.', { ok: 'Exporter en clair', danger: true }))) return; const data = await DB.exportAll(UI.$('#p-withpdf').checked); U.download(`sauvegarde_baux_${U.toISO(new Date())}.json`, JSON.stringify(data), 'application/json'); };
     UI.$('#p-imp', v).onclick = () => UI.$('#p-imp-file', v).click();
-    UI.$('#p-imp-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const text = await U.readFile(f, 'text'); let pw = null; if (text.startsWith('{"format":"bail-bail-chiffre"')) pw = await UI.prompt('Mot de passe de la sauvegarde :', { type: 'password' }); const obj = await CRYPTO.unpackFile(text, pw || ''); const replace = UI.$('#p-replace').checked; if (replace && !(await UI.confirm('Remplacer toutes les données actuelles par la sauvegarde ?', { danger: true, ok: 'Remplacer' }))) return; await DB.importAll(obj, { replace }); APP.baux = await DB.all('baux'); await INDICES.load(); APP.learned = await DB.getSetting('learned', {}); UI.toast('Sauvegarde restaurée'); APP.render(); } catch (ex) { UI.toast('Échec : ' + (ex.message || 'mot de passe incorrect ?'), 5000); } };
+    UI.$('#p-imp-file', v).onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const text = await U.readFile(f, 'text'); let pw = null; if (text.startsWith('{"format":"bail-bail-chiffre"')) pw = await UI.prompt('Mot de passe de la sauvegarde :', { type: 'password' }); const obj = await CRYPTO.unpackFile(text, pw || ''); const replace = UI.$('#p-replace').checked; if (replace && !(await UI.confirm('Remplacer toutes les données actuelles par la sauvegarde ?', { danger: true, ok: 'Remplacer' }))) return; await DB.importAll(obj, { replace }); APP.baux = (await DB.all('baux')).map(APP.migrate); await INDICES.load(); APP.learned = await DB.getSetting('learned', {}); UI.toast('Sauvegarde restaurée'); APP.render(); } catch (ex) { UI.toast('Échec : ' + (ex.message || 'mot de passe incorrect ?'), 5000); } };
     UI.$('#p-xlsx', v).onclick = () => EXCEL.exportBase(APP.filtered(), INDICES.cache, APP.quittance, APP.rapp);
     UI.$('#p-pass', v).onclick = async () => { const o = await UI.prompt('Mot de passe actuel :', { type: 'password' }); if (!o) return; const n = await UI.prompt('Nouveau mot de passe (8 caractères minimum) :', { type: 'password' }); if (!n || n.length < 8) return; const n2 = await UI.prompt('Confirmer le nouveau mot de passe :', { type: 'password' }); if (n !== n2) { UI.toast('Les saisies diffèrent'); return; } UI.toast('Ré-encodage en cours…'); if (await SESSION.changePassword(o, n)) UI.toast('Mot de passe changé'); else UI.toast('Mot de passe actuel incorrect'); };
     UI.$('#p-delay', v).onchange = async e => { SESSION.delayMin = Math.max(0, +e.target.value || 0); await DB.setSetting('lockDelay', SESSION.delayMin); SESSION.touch(); };

@@ -17,8 +17,17 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   const vals = await p.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-field]')].map(e => [e.dataset.field, [e.value, e.closest('.f').className]])));
   console.log(JSON.stringify(vals, null, 0));
   await p.screenshot({ path: path.join(shots, '2-bail.png') });
+  // lots : répartition automatique quand on change le loyer total, puis quand on change une surface
+  const lots0 = await p.evaluate(() => APP.sel.lots.map(l => [l.lot, l.type, l.surface, l.montantAnnuelHT])); console.log('lots extraits', JSON.stringify(lots0));
+  await p.fill('[data-field="loyerAnnuelHT"]', '130000'); await p.dispatchEvent('[data-field="loyerAnnuelHT"]', 'input'); await p.waitForTimeout(100);
+  console.log('lots après total 130000', JSON.stringify(await p.evaluate(() => APP.sel.lots.map(l => [l.lot, l.type, l.surface, l.montantAnnuelHT]))));
+  await p.fill('[data-sub="lots"][data-i="0"][data-k="surface"]', '400'); await p.dispatchEvent('[data-sub="lots"][data-i="0"][data-k="surface"]', 'input'); await p.waitForTimeout(100);
+  console.log('lots après surface 400', JSON.stringify(await p.evaluate(() => ({ lots: APP.sel.lots.map(l => [l.lot, l.type, l.surface, l.montantAnnuelHT]), total: APP.sel.loyerAnnuelHT, st: APP.sel.surfaceTotale }))));
+  await p.fill('[data-field="yardiProperty"]', 'fr100001'); await p.dispatchEvent('[data-field="yardiProperty"]', 'input');
+  await p.click('#b-mode'); await p.waitForTimeout(200); await p.screenshot({ path: path.join(shots, '2b-bail-complet.png') }); await p.click('#b-mode'); await p.waitForTimeout(200);
+  await p.click('#b-list'); await p.waitForTimeout(300); await p.screenshot({ path: path.join(shots, '2c-bail-sans-liste.png') }); await p.click('#b-list'); await p.waitForTimeout(300);
   // correction d'un champ -> apprentissage, puis sauvegarde + validation
-  await p.fill('[data-field="enseigne"]', 'EXEMPLE'); await p.click('#b-save'); await p.waitForTimeout(200);
+  await p.fill('[data-field="ref"]', '24.001.01'); await p.dispatchEvent('[data-field="ref"]', 'input'); await p.click('#b-save'); await p.waitForTimeout(200);
   await p.click('[data-src="loyerAnnuelHT"]'); await p.waitForTimeout(500); await p.screenshot({ path: path.join(shots, '3-source.png') });
   // indices
   await p.click('#tabs button[data-view="indices"]'); await p.waitForSelector('[data-idx]');
@@ -26,7 +35,7 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   await p.screenshot({ path: path.join(shots, '4-indices.png') });
   // quittancement 2025
   await p.click('#tabs button[data-view="quittance"]'); await p.fill('#q-from', '2025-01-01'); await p.fill('#q-to', '2025-12-31'); await p.click('#q-run'); await p.waitForSelector('#q-out table');
-  const q = await p.evaluate(() => ({ n: APP.quittance.length, lignes: APP.quittance.slice(0, 6).map(l => [l.du, l.au, l.libelle, l.ht, l.coef.toFixed(4)]), warn: document.querySelector('#q-warn').textContent.trim().slice(0, 200) }));
+  const q = await p.evaluate(() => ({ n: APP.quittance.length, lignes: APP.quittance.slice(0, 5).map(l => [l.du, l.au, l.libelle, l.lot, l.yardiTenant, l.yardiProperty, l.ht, l.coef.toFixed(4)]), warn: document.querySelector('#q-warn').textContent.trim().slice(0, 200) }));
   console.log(JSON.stringify(q)); await p.screenshot({ path: path.join(shots, '5-quittance.png') });
   // yardi : collage
   await p.click('#tabs button[data-view="yardi"]'); await p.waitForSelector('#y-paste'); await p.click('#y-paste');
@@ -40,7 +49,7 @@ const shots = path.join(__dirname, 'shots'); fs.mkdirSync(shots, { recursive: tr
   await p.screenshot({ path: path.join(shots, '6-yardi.png') });
   // verrouillage / déverrouillage (relecture depuis les fichiers chiffrés)
   await p.keyboard.press('Control+l'); await p.waitForSelector('#lock:not(.hidden)'); await p.fill('#pass1', 'motdepasse123'); await p.click('#form-pass button'); await p.waitForSelector('#app:not(.hidden)'); await p.waitForFunction(() => APP.baux.length > 0, null, { timeout: 15000 });
-  const after = await p.evaluate(() => ({ baux: APP.baux.length, enseigne: APP.baux[0].enseigne, learned: Object.keys(APP.learned) })); console.log('après déverrouillage', JSON.stringify(after));
+  const after = await p.evaluate(() => ({ baux: APP.baux.length, ref: APP.baux[0].ref, lots: APP.baux[0].lots.length, prop: APP.baux[0].yardi.propertyCode, learned: Object.keys(APP.learned) })); console.log('après déverrouillage', JSON.stringify(after));
   const files = await p.evaluate(() => window.__fakeFsList()); console.log('fichiers :', files.join(' | '));
   // paramètres : export excel (download) et sauvegarde chiffrée
   await p.click('#tabs button[data-view="params"]'); await p.waitForSelector('#p-xlsx');

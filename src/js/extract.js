@@ -70,6 +70,8 @@ const EXTRACT = {
     { key: 'indexBaseValeur', label: 'Indice de base (valeur)', type: 'num', rules: [
       { re: /trimestre\s*(?:de\s*)?(?:l'annee\s*)?\d{4}\s*,?\s*soit\s*NUM/, g: 1 }, { re: /indice de base[^\n]{0,200}?soit\s*NUM/, g: 1 },
       { re: /indice de base[^\n]{0,120}?(?:de|a|egal a)\s*NUM/, g: 1, conf: 'doute' }] },
+    { key: 'indexRevisionPeriode', label: 'Indice de révision (trimestre)', type: 'trim', rules: [
+      { re: /indice de (?:revision|comparaison|reference)[^\n]{0,120}?(\d)(?:er|eme|e)?\s*trimestre\s*(?:de\s*)?(?:l'annee\s*)?(\d{4})/, fn: m => `${m[2]}T${m[1]}` }] },
     { key: 'indexPremiereDate', label: 'Première indexation', type: 'date', rules: [
       { re: /pour la premiere fois le\s+DATE/, g: 1 }, { re: /premiere (?:indexation|revision)[^\n]{0,80}?le\s+DATE/, g: 1 },
       { re: /indexe[^\n]{0,120}?a compter du\s+DATE/, g: 1, conf: 'doute' }] },
@@ -192,6 +194,7 @@ const EXTRACT = {
     if (!g('terme') && g('periodicite')) out.terme = { value: 'echoir', conf: 'doute', deduit: true };
     if (g('dateEffet') && !g('dateFin') && g('dureeMois')) out.dateFin = { value: U.addDays(U.addMonths(g('dateEffet'), g('dureeMois')), -1), conf: 'doute', deduit: true };
     if (g('dateEffet') && g('dateFin') && !g('dureeMois')) { const d = U.fromISO(g('dateEffet')), e = U.fromISO(g('dateFin')); const m = (e.getFullYear() - d.getFullYear()) * 12 + e.getMonth() - d.getMonth() + (e.getDate() >= d.getDate() - 1 ? 1 : 0); out.dureeMois = { value: m, conf: 'doute', deduit: true }; }
+    if (!g('indexRevisionPeriode') && g('indexBasePeriode')) out.indexRevisionPeriode = { value: U.trimAdd(g('indexBasePeriode'), 4), conf: 'doute', deduit: true };
     if (!g('indexPremiereDate') && g('dateEffet')) out.indexPremiereDate = { value: U.addMonths(g('dateEffet'), 12), conf: 'doute', deduit: true };
     if (g('chargesMontant') && typeof g('chargesMontant') === 'object') { const s = g('surfaceTotale'); out.chargesMontant = { ...out.chargesMontant, value: s ? U.round2(g('chargesMontant').perM2 * s) : null, conf: 'doute', note: `${g('chargesMontant').perM2} €/m²` }; }
     if (g('depotMontant') && g('loyerAnnuelHT') && !g('depotMois')) { const r = g('depotMontant') / (g('loyerAnnuelHT') / 12); if (Math.abs(r - Math.round(r)) < 0.05) out.depotMois = { value: Math.round(r), conf: 'doute', deduit: true }; }
@@ -204,19 +207,39 @@ const EXTRACT = {
     if (g('type') === 'derogatoire' && g('dureeMois') > 36) anomalies.push('Bail dérogatoire de plus de 36 mois');
     out._anomalies = anomalies;
   },
-  // Lignes de loyer : tente de lire la décomposition "- 204.000 € ... lot B1 / - 2.700 € ... parkings"
+  // Lignes de loyer : lit la décomposition "- 204.000 € ... lot B1 / - 2.700 € ... parkings"
   rentLines(pages, total) {
     const ctx = EXTRACT.buildText(pages); const lines = [];
     const re = new RegExp('(?:^|\\n)\\s*[-•]\\s*' + EXTRACT.NUM + '\\s*(?:€|euros?|eur)?[^\\n]{0,20}?(?:au titre d[eu]s?|pour|correspondant a[ux]*)?\\s*([^\\n]{3,80})', 'g');
     let m, i = 0; const start = ctx.norm.search(/se decomposant comme suit|decompose comme suit|ventile comme suit/); const zone = start >= 0 ? ctx.norm.slice(start, start + 800) : '';
     while (zone && (m = re.exec(zone)) && i < 8) {
       const v = U.parseNum(m[1]); if (!v) continue; i++; const libN = m[2].trim(); const gi = start + m.index + m[0].lastIndexOf(m[2]); const lib = ctx.orig.slice(gi, gi + m[2].length).trim().replace(/^(au titre d[eu]s?|pour|correspondant aux?)\s+/i, '');
-      lines.push({ libelle: lib, type: /parking|stationnement/.test(libN) ? 'parking' : /entrepot|activite|stockage/.test(libN) ? 'entrepot' : 'bureau', montantAnnuelHT: v });
+      const lotM = /\blots?\s+(?:n°\s*)?([a-z]?\d{1,4}[a-z]?(?:\s*(?:,|et|&)\s*[a-z]?\d{1,4}[a-z]?)*)/.exec(libN);
+      lines.push({ libelle: lib, lot: lotM ? lotM[1].toUpperCase().replace(/\s+/g, ' ') : '', type: /parking|stationnement/.test(libN) ? 'parking' : /entrepot|activite|stockage/.test(libN) ? 'entrepot' : 'bureau', montantAnnuelHT: v });
     }
     const sum = lines.reduce((s, l) => s + l.montantAnnuelHT, 0);
     if (lines.length && total && Math.abs(sum - total) > 1) lines.forEach(l => l.doute = true);
-    if (!lines.length && total) lines.push({ libelle: 'Loyer principal', type: 'bureau', montantAnnuelHT: total });
     return lines;
+  },
+  // Tableau des lots : fusionne lignes de loyer, surfaces par usage et numéros de lot
+  lots(pages, total, lotsTexte) {
+    const lines = EXTRACT.rentLines(pages, total); const surfaces = EXTRACT.surfaces(pages);
+    const lotNums = String(lotsTexte || '').toUpperCase().split(/\s*(?:,|ET|&)\s*/).map(x => x.trim()).filter(Boolean);
+    const typeOf = u => /bureau/.test(u) ? 'bureau' : /parking|stationnement/.test(u) ? 'parking' : 'entrepot';
+    const out = [];
+    if (lines.length) {
+      for (const l of lines) {
+        const sf = surfaces.find(sx => !sx.used && typeOf(sx.usage) === l.type); if (sf) sf.used = true;
+        out.push({ lot: l.lot || (l.type === 'parking' ? '' : lotNums[0] || ''), type: l.type, surface: sf ? sf.surface : null, montantAnnuelHT: l.montantAnnuelHT, unitCode: '', libelle: l.libelle, doute: l.doute });
+      }
+    } else if (lotNums.length) {
+      lotNums.forEach((n, i) => { const sf = surfaces[i]; out.push({ lot: n, type: sf ? typeOf(sf.usage) : 'bureau', surface: sf ? sf.surface : null, montantAnnuelHT: null, unitCode: '' }); });
+    } else if (surfaces.length) surfaces.forEach(sx => out.push({ lot: '', type: typeOf(sx.usage), surface: sx.surface, montantAnnuelHT: null, unitCode: '' }));
+    else if (total) out.push({ lot: '', type: 'bureau', surface: null, montantAnnuelHT: total, unitCode: '' });
+    // Surfaces restantes non rattachées -> lots supplémentaires sans montant
+    for (const sx of surfaces) if (!sx.used && !out.some(o => o.surface === sx.surface)) out.push({ lot: '', type: typeOf(sx.usage), surface: sx.surface, montantAnnuelHT: null, unitCode: '' });
+    if (total && out.some(o => o.montantAnnuelHT === null)) CALC.repartir({ lots: out }, total);
+    return out;
   },
   // Surfaces par usage : cherche des paires "NNN m²" avec libellé proche
   surfaces(pages) {
